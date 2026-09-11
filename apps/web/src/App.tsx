@@ -7,6 +7,10 @@ import {
   moduli,
   ralDaNetto,
   calcolaBustaPaga,
+  totaleUscita,
+  valoreNettoStrumento,
+  TIPI_STRUMENTO,
+  type Blocco,
   type Contesto,
   type DatiUtente,
   type Kpi,
@@ -19,12 +23,31 @@ const MESI = [
   'lug', 'ago', 'set', 'ott', 'nov', 'dic',
 ]
 
+const BLOCCHI: [Blocco, string][] = [
+  ['necessita', 'Necessit\u00e0'],
+  ['svago', 'Svago'],
+  ['risparmio', 'Risparmio'],
+]
+
+const ORIZZONTI: [string, string][] = [
+  ['breve', 'Breve \u2014 2\u00b0 pilastro'],
+  ['medio', 'Medio \u2014 3\u00b0 pilastro'],
+  ['lungo', 'Lungo \u2014 4\u00b0 pilastro'],
+]
+
+/** Trasforma 'emilia-romagna' in 'Emilia Romagna'. Le chiavi delle regole sono slug. */
+function daSlug(s: string): string {
+  if (s === 'default') return 'Altra \u2014 media indicativa'
+  return s.replaceAll('-', ' ').replace(/\b\p{L}/gu, (c) => c.toUpperCase())
+}
+
 type Scheda =
   | 'guida'
   | 'dashboard'
   | 'fatture'
   | 'previsione'
   | 'uscite'
+  | 'patrimonio'
   | 'dipendente'
   | 'isee'
   | 'impostazioni'
@@ -90,6 +113,7 @@ export function App() {
     ['fatture', 'Fatture', true],
     ['previsione', 'Previsionale', moduliCalcolati.includes('previsione')],
     ['uscite', 'Uscite', true],
+    ['patrimonio', 'Patrimonio', moduliCalcolati.includes('patrimonio')],
     ['dipendente', 'Lavoro dipendente', moduliCalcolati.includes('dipendente')],
     ['isee', 'ISEE', moduliCalcolati.includes('isee')],
     ['impostazioni', 'Impostazioni', true],
@@ -439,131 +463,10 @@ export function App() {
         </section>
       )}
 
-      {scheda === 'uscite' && (
-        <section>
-          <h2>Uscite</h2>
-          <p className="nota">
-            Mese 0 significa spesa ricorrente, spalmata su dodici mesi. Da 1 a 12 significa che
-            esce tutta in quel mese, come il bollo o l'assicurazione.
-          </p>
-          <table>
-            <thead>
-              <tr>
-                <th>Categoria</th>
-                <th>Voce</th>
-                <th>Costo</th>
-                <th>Ricorrenze</th>
-                <th>Mese</th>
-                <th>Risparmio</th>
-                <th>Totale</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {dati.uscite.map((u, i) => (
-                <tr key={u.id}>
-                  <td>
-                    <input
-                      value={u.categoria}
-                      onChange={(e) =>
-                        aggiorna((d) => {
-                          d.uscite[i].categoria = e.target.value
-                        })
-                      }
-                    />
-                  </td>
-                  <td>
-                    <input
-                      value={u.voce}
-                      onChange={(e) =>
-                        aggiorna((d) => {
-                          d.uscite[i].voce = e.target.value
-                        })
-                      }
-                    />
-                  </td>
-                  <td>
-                    <CampoEuro
-                      valore={u.costoUnitario}
-                      onChange={(c) =>
-                        aggiorna((d) => {
-                          d.uscite[i].costoUnitario = c
-                        })
-                      }
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      step="0.5"
-                      style={{ width: 70 }}
-                      value={u.ricorrenze}
-                      onChange={(e) =>
-                        aggiorna((d) => {
-                          d.uscite[i].ricorrenze = Number(e.target.value)
-                        })
-                      }
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      min={0}
-                      max={12}
-                      style={{ width: 60 }}
-                      value={u.mese}
-                      onChange={(e) =>
-                        aggiorna((d) => {
-                          d.uscite[i].mese = Number(e.target.value)
-                        })
-                      }
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={u.risparmio}
-                      onChange={(e) =>
-                        aggiorna((d) => {
-                          d.uscite[i].risparmio = e.target.checked
-                        })
-                      }
-                    />
-                  </td>
-                  <td>{formatta(Math.round(u.costoUnitario * u.ricorrenze))}</td>
-                  <td>
-                    <button
-                      onClick={() =>
-                        aggiorna((d) => {
-                          d.uscite.splice(i, 1)
-                        })
-                      }
-                    >
-                      ×
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <button
-            onClick={() =>
-              aggiorna((d) => {
-                d.uscite.push({
-                  id: crypto.randomUUID(),
-                  categoria: '',
-                  voce: '',
-                  costoUnitario: 0,
-                  ricorrenze: 12,
-                  mese: 0,
-                  risparmio: false,
-                })
-              })
-            }
-          >
-            Aggiungi voce
-          </button>
-        </section>
+      {scheda === 'uscite' && <SchedaUscite dati={dati} aggiorna={aggiorna} />}
+
+      {scheda === 'patrimonio' && (
+        <SchedaPatrimonio dati={dati} aggiorna={aggiorna} contesto={contesto} />
       )}
 
       {scheda === 'dipendente' && (
@@ -627,6 +530,45 @@ export function App() {
                 ))}
               </select>
             </label>
+            <label>
+              Regione
+              <select
+                value={dati.profilo.regione}
+                onChange={(e) =>
+                  aggiorna((d) => {
+                    d.profilo.regione = e.target.value
+                  })
+                }
+              >
+                {Object.keys(contesto.regole.lavoroDipendente.addizionali.regionali).map((r) => (
+                  <option key={r} value={r}>
+                    {daSlug(r)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Comune
+              <select
+                value={dati.profilo.comune}
+                onChange={(e) =>
+                  aggiorna((d) => {
+                    d.profilo.comune = e.target.value
+                  })
+                }
+              >
+                {Object.keys(contesto.regole.lavoroDipendente.addizionali.comunali).map((c) => (
+                  <option key={c} value={c}>
+                    {daSlug(c)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="nota">
+              Servono per le addizionali IRPEF regionale e comunale sul reddito da lavoro
+              dipendente. Con &laquo;Altra&raquo; si usa un valore medio indicativo, non la tua
+              aliquota reale: quella e&rsquo; sulla busta paga.
+            </p>
             <label>
               Anno di inizio attività
               <input
@@ -1014,5 +956,578 @@ function SchedaIsee({
         </label>
       ))}
     </section>
+  )
+}
+
+/**
+ * Uscite. Due cose sono cambiate rispetto alla griglia libera di prima, ed
+ * entrambe servono a rendere impossibile uno stato sbagliato invece che a
+ * segnalarlo dopo.
+ *
+ * La categoria si sceglie da un elenco: era testo libero confrontato con
+ * nomi fissi, e chi scriveva "Auto" invece di "Macchina" si ritrovava
+ * l'assicurazione contata come svago senza saperlo.
+ *
+ * La cadenza e' un interruttore: prima "mese 0" significava ricorrente e
+ * niente impediva di chiedere una spesa una tantum ripetuta dodici volte,
+ * che addebitava l'intero anno in un mese solo.
+ */
+function SchedaUscite({
+  dati,
+  aggiorna,
+}: {
+  dati: DatiUtente
+  aggiorna: (fn: (d: DatiUtente) => void) => void
+}) {
+  const [nuovaCategoria, setNuovaCategoria] = useState('')
+  const daAssegnare = dati.categorie.filter((c) => c.blocco === null)
+  const usata = (nome: string) => dati.uscite.some((u) => u.categoria === nome)
+
+  return (
+    <>
+      <section>
+        <h2>Uscite</h2>
+        <p className="nota">
+          Una voce <strong>ricorrente</strong> si spalma sui dodici mesi. Una voce{' '}
+          <strong>una tantum</strong> esce tutta nel mese che scegli, come il bollo o
+          l&rsquo;assicurazione.
+        </p>
+        <div className="tabella">
+          <table>
+            <thead>
+              <tr>
+                <th>Categoria</th>
+                <th>Voce</th>
+                <th>Costo</th>
+                <th>Quando</th>
+                <th>Quante volte / Mese</th>
+                <th>Risparmio</th>
+                <th>Totale</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {dati.uscite.map((u, i) => (
+                <tr key={u.id}>
+                  <td>
+                    <select
+                      value={u.categoria}
+                      onChange={(e) =>
+                        aggiorna((d) => {
+                          d.uscite[i].categoria = e.target.value
+                        })
+                      }
+                    >
+                      {!dati.categorie.some((c) => c.nome === u.categoria) && (
+                        <option value={u.categoria}>{u.categoria || '—'}</option>
+                      )}
+                      {dati.categorie.map((c) => (
+                        <option key={c.nome} value={c.nome}>
+                          {c.nome}
+                          {c.blocco === null ? ' — da assegnare' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td>
+                    <input
+                      value={u.voce}
+                      onChange={(e) =>
+                        aggiorna((d) => {
+                          d.uscite[i].voce = e.target.value
+                        })
+                      }
+                    />
+                  </td>
+                  <td>
+                    <CampoEuro
+                      valore={u.costoUnitario}
+                      onChange={(c) =>
+                        aggiorna((d) => {
+                          d.uscite[i].costoUnitario = c
+                        })
+                      }
+                    />
+                  </td>
+                  <td>
+                    <select
+                      value={u.cadenza}
+                      onChange={(e) =>
+                        aggiorna((d) => {
+                          const riga = d.uscite[i]
+                          if (e.target.value === 'ricorrente') {
+                            riga.cadenza = 'ricorrente'
+                            riga.mese = null
+                            if (riga.ricorrenze <= 1) riga.ricorrenze = 12
+                          } else {
+                            riga.cadenza = 'una-tantum'
+                            riga.mese = riga.mese ?? 1
+                            riga.ricorrenze = 1
+                          }
+                        })
+                      }
+                    >
+                      <option value="ricorrente">Ricorrente</option>
+                      <option value="una-tantum">Una tantum</option>
+                    </select>
+                  </td>
+                  <td>
+                    {u.cadenza === 'ricorrente' ? (
+                      <input
+                        type="number"
+                        min={1}
+                        step={1}
+                        style={{ width: 70 }}
+                        value={u.ricorrenze}
+                        onChange={(e) =>
+                          aggiorna((d) => {
+                            d.uscite[i].ricorrenze = Math.max(1, Number(e.target.value))
+                          })
+                        }
+                      />
+                    ) : (
+                      <select
+                        value={u.mese ?? 1}
+                        onChange={(e) =>
+                          aggiorna((d) => {
+                            d.uscite[i].mese = Number(e.target.value)
+                          })
+                        }
+                      >
+                        {MESI.map((m, idx) => (
+                          <option key={m} value={idx + 1}>
+                            {m}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </td>
+                  <td>
+                    <input
+                      type="checkbox"
+                      aria-label="Trasferimento a risparmio invece che spesa"
+                      checked={u.risparmio}
+                      onChange={(e) =>
+                        aggiorna((d) => {
+                          d.uscite[i].risparmio = e.target.checked
+                        })
+                      }
+                    />
+                  </td>
+                  <td>{formatta(totaleUscita(u))}</td>
+                  <td>
+                    <button
+                      aria-label={`Elimina ${u.voce || 'la voce'}`}
+                      onClick={() =>
+                        aggiorna((d) => {
+                          d.uscite.splice(i, 1)
+                        })
+                      }
+                    >
+                      &times;
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <button
+          onClick={() =>
+            aggiorna((d) => {
+              d.uscite.push({
+                id: crypto.randomUUID(),
+                categoria: d.categorie[0]?.nome ?? '',
+                voce: '',
+                costoUnitario: 0,
+                ricorrenze: 12,
+                cadenza: 'ricorrente',
+                mese: null,
+                risparmio: false,
+              })
+            })
+          }
+        >
+          Aggiungi voce
+        </button>
+      </section>
+
+      <section>
+        <h2>Categorie</h2>
+        <p className="nota">
+          Ogni categoria dichiara a quale blocco della regola 50-30-20 appartiene. Quelle senza
+          blocco restano fuori dal conteggio: l&rsquo;app non le assegna al posto tuo.
+        </p>
+        {daAssegnare.length > 0 && (
+          <p className="avviso attenzione">
+            Da assegnare: {daAssegnare.map((c) => c.nome).join(', ')}.
+          </p>
+        )}
+        <div className="tabella">
+          <table>
+            <thead>
+              <tr>
+                <th>Categoria</th>
+                <th>Blocco</th>
+                <th>Voci collegate</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {dati.categorie.map((c, i) => (
+                <tr key={c.nome}>
+                  <th>{c.nome}</th>
+                  <td>
+                    <select
+                      value={c.blocco ?? ''}
+                      onChange={(e) =>
+                        aggiorna((d) => {
+                          d.categorie[i].blocco = (e.target.value || null) as Blocco | null
+                        })
+                      }
+                    >
+                      <option value="">Da assegnare</option>
+                      {BLOCCHI.map(([valore, etichetta]) => (
+                        <option key={valore} value={valore}>
+                          {etichetta}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td>{dati.uscite.filter((u) => u.categoria === c.nome).length}</td>
+                  <td>
+                    <button
+                      aria-label={`Elimina la categoria ${c.nome}`}
+                      disabled={usata(c.nome)}
+                      title={usata(c.nome) ? 'Ci sono voci in questa categoria' : undefined}
+                      onClick={() =>
+                        aggiorna((d) => {
+                          d.categorie.splice(i, 1)
+                        })
+                      }
+                    >
+                      &times;
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <label>
+          Nuova categoria
+          <input
+            value={nuovaCategoria}
+            placeholder="Es. Animali"
+            onChange={(e) => setNuovaCategoria(e.target.value)}
+          />
+        </label>
+        <button
+          disabled={
+            !nuovaCategoria.trim() ||
+            dati.categorie.some((c) => c.nome === nuovaCategoria.trim())
+          }
+          onClick={() => {
+            const nome = nuovaCategoria.trim()
+            aggiorna((d) => {
+              d.categorie.push({ nome, blocco: null })
+            })
+            setNuovaCategoria('')
+          }}
+        >
+          Aggiungi categoria
+        </button>
+      </section>
+    </>
+  )
+}
+
+/**
+ * Patrimonio secondo i quattro pilastri. Fino a ora questi dati esistevano nel
+ * modello e nel riepilogo ma non avevano nessun posto dove essere inseriti:
+ * chi non caricava l'esempio vedeva quattro riquadri a zero.
+ */
+function SchedaPatrimonio({
+  dati,
+  aggiorna,
+  contesto,
+}: {
+  dati: DatiUtente
+  aggiorna: (fn: (d: DatiUtente) => void) => void
+  contesto: Contesto
+}) {
+  const v = contesto.valori
+  const inv = contesto.regole.investimenti
+  const p = dati.patrimonio
+
+  const pilastri: [string, string, number, number | null, string][] = [
+    ['1º', 'Liquidità — spese correnti', v.pilastro1 ?? 0, null,
+      'Conto corrente. Uno o due mesi di spese.'],
+    ['2º', 'Fondo di emergenza', v.pilastro2 ?? 0, v.obiettivoFondoEmergenza ?? null,
+      'Una partita IVA non ha la NASpI dietro: sei mesi di spese, non tre.'],
+    ['3º', 'Spese prevedibili e accantonamento tasse', v.pilastro3 ?? 0,
+      v.obiettivoFondoTasse ?? null,
+      'Conto deposito, BTP o monetari con scadenza vicina all’obiettivo.'],
+    ['4º', 'Investimenti di lungo termine', v.pilastro4 ?? 0, null,
+      'ETF azionari globali, fondo pensione. Dieci anni in su.'],
+  ]
+
+  return (
+    <>
+      <section>
+        <h2>I quattro pilastri</h2>
+        <p className="nota">
+          Ogni euro assegnato al suo orizzonte temporale, prima di scegliere lo strumento. Le
+          somme sui conti le scrivi qui; quelle in strumenti arrivano dal portafoglio qui sotto,
+          secondo l&rsquo;orizzonte che gli hai dato.
+        </p>
+        <div className="tabella">
+          <table>
+            <thead>
+              <tr>
+                <th>Pilastro</th>
+                <th>Su conti e depositi</th>
+                <th>Totale</th>
+                <th>Obiettivo</th>
+                <th>Copertura</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pilastri.map(([numero, nome, totale, obiettivo, nota], i) => (
+                <tr key={numero}>
+                  <th>
+                    {numero} {nome}
+                    <br />
+                    <span className="nota">{nota}</span>
+                  </th>
+                  <td>
+                    {i === 0 && (
+                      <CampoEuro
+                        valore={p.liquidita}
+                        onChange={(c) =>
+                          aggiorna((d) => {
+                            d.patrimonio.liquidita = c
+                          })
+                        }
+                      />
+                    )}
+                    {i === 1 && (
+                      <CampoEuro
+                        valore={p.fondoEmergenza}
+                        onChange={(c) =>
+                          aggiorna((d) => {
+                            d.patrimonio.fondoEmergenza = c
+                          })
+                        }
+                      />
+                    )}
+                    {i === 2 && (
+                      <CampoEuro
+                        valore={p.spesePrevedibili}
+                        onChange={(c) =>
+                          aggiorna((d) => {
+                            d.patrimonio.spesePrevedibili = c
+                          })
+                        }
+                      />
+                    )}
+                    {i === 3 && <span className="nota">solo strumenti</span>}
+                  </td>
+                  <td>{formatta(totale)}</td>
+                  <td>{obiettivo === null ? '—' : formatta(obiettivo)}</td>
+                  <td>
+                    {obiettivo === null || obiettivo === 0
+                      ? '—'
+                      : formattaPercentuale(totale / obiettivo, 0)}
+                  </td>
+                </tr>
+              ))}
+              <tr>
+                <th>Patrimonio totale</th>
+                <td />
+                <td>
+                  <strong>{formatta(v.patrimonioTotale ?? 0)}</strong>
+                </td>
+                <td />
+                <td />
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>Portafoglio</h2>
+        <p className="nota">
+          Il valore netto sconta il capital gain sulla sola plusvalenza:{' '}
+          {formattaPercentuale(inv.capitalGain, 0)} in generale,{' '}
+          {formattaPercentuale(inv.capitalGainTitoliDiStato, 1)} sui titoli di Stato. In perdita
+          la tassa e&rsquo; zero, non negativa.
+        </p>
+        <div className="tabella">
+          <table>
+            <thead>
+              <tr>
+                <th>Strumento</th>
+                <th>Tipo</th>
+                <th>Orizzonte</th>
+                <th>Prezzo di carico</th>
+                <th>Prezzo di mercato</th>
+                <th>Quantit&agrave;</th>
+                <th>Destinazione</th>
+                <th>Titolo di Stato</th>
+                <th>Valore netto</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {p.strumenti.map((st, i) => (
+                <tr key={st.id}>
+                  <td>
+                    <input
+                      value={st.nome}
+                      onChange={(e) =>
+                        aggiorna((d) => {
+                          d.patrimonio.strumenti[i].nome = e.target.value
+                        })
+                      }
+                    />
+                  </td>
+                  <td>
+                    <select
+                      value={st.tipo}
+                      onChange={(e) =>
+                        aggiorna((d) => {
+                          d.patrimonio.strumenti[i].tipo = e.target.value
+                        })
+                      }
+                    >
+                      {!TIPI_STRUMENTO.includes(st.tipo as (typeof TIPI_STRUMENTO)[number]) && (
+                        <option value={st.tipo}>{st.tipo || '—'}</option>
+                      )}
+                      {TIPI_STRUMENTO.map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td>
+                    <select
+                      value={st.orizzonte}
+                      onChange={(e) =>
+                        aggiorna((d) => {
+                          d.patrimonio.strumenti[i].orizzonte = e.target
+                            .value as (typeof d.patrimonio.strumenti)[number]['orizzonte']
+                        })
+                      }
+                    >
+                      {ORIZZONTI.map(([valore, etichetta]) => (
+                        <option key={valore} value={valore}>
+                          {etichetta}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td>
+                    <CampoEuro
+                      valore={st.prezzoCarico}
+                      larghezza={90}
+                      onChange={(c) =>
+                        aggiorna((d) => {
+                          d.patrimonio.strumenti[i].prezzoCarico = c
+                        })
+                      }
+                    />
+                  </td>
+                  <td>
+                    <CampoEuro
+                      valore={st.prezzoMercato}
+                      larghezza={90}
+                      onChange={(c) =>
+                        aggiorna((d) => {
+                          d.patrimonio.strumenti[i].prezzoMercato = c
+                        })
+                      }
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      step="0.0001"
+                      style={{ width: 80 }}
+                      value={st.quantita}
+                      onChange={(e) =>
+                        aggiorna((d) => {
+                          d.patrimonio.strumenti[i].quantita = Number(e.target.value)
+                        })
+                      }
+                    />
+                  </td>
+                  <td>
+                    <input
+                      value={st.destinazione}
+                      onChange={(e) =>
+                        aggiorna((d) => {
+                          d.patrimonio.strumenti[i].destinazione = e.target.value
+                        })
+                      }
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="checkbox"
+                      aria-label="Titolo di Stato o equiparato"
+                      checked={st.titoloDiStato}
+                      onChange={(e) =>
+                        aggiorna((d) => {
+                          d.patrimonio.strumenti[i].titoloDiStato = e.target.checked
+                        })
+                      }
+                    />
+                  </td>
+                  <td>
+                    {formatta(
+                      valoreNettoStrumento(st, inv.capitalGain, inv.capitalGainTitoliDiStato),
+                    )}
+                  </td>
+                  <td>
+                    <button
+                      aria-label={`Elimina ${st.nome || 'lo strumento'}`}
+                      onClick={() =>
+                        aggiorna((d) => {
+                          d.patrimonio.strumenti.splice(i, 1)
+                        })
+                      }
+                    >
+                      &times;
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <button
+          onClick={() =>
+            aggiorna((d) => {
+              d.patrimonio.strumenti.push({
+                id: crypto.randomUUID(),
+                nome: '',
+                tipo: 'ETF azionario',
+                orizzonte: 'lungo',
+                prezzoCarico: 0,
+                prezzoMercato: 0,
+                quantita: 0,
+                destinazione: '',
+                titoloDiStato: false,
+              })
+            })
+          }
+        >
+          Aggiungi strumento
+        </button>
+      </section>
+    </>
   )
 }

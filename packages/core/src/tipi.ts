@@ -1,7 +1,7 @@
 import type { Regole } from '@iperiva/rules'
 import type { Cents } from './denaro.js'
 
-export const SCHEMA_VERSION = 1
+export const SCHEMA_VERSION = 2
 
 export type Regime = 'forfettario'
 export type CodiceGestione = 'gestione_separata' | 'artigiani' | 'commercianti'
@@ -39,14 +39,33 @@ export interface RigaPrevisione {
   mesi: Cents[]
 }
 
+/** Blocco della regola 50-30-20 a cui appartiene una categoria di spesa. */
+export type Blocco = 'necessita' | 'svago' | 'risparmio'
+
+/**
+ * Registro delle categorie di spesa dell'utente. Esiste per una ragione sola:
+ * far sì che ogni categoria dichiari a quale blocco appartiene, invece di
+ * essere indovinata confrontando stringhe. `blocco: null` significa "non
+ * ancora assegnata" e produce un avviso: mai un'assegnazione silenziosa.
+ */
+export interface Categoria {
+  nome: string
+  blocco: Blocco | null
+}
+
+/** Una voce ricorrente si spalma su dodici mesi; una tantum esce in un mese solo. */
+export type Cadenza = 'ricorrente' | 'una-tantum'
+
 export interface Uscita {
   id: string
   categoria: string
   voce: string
   costoUnitario: Cents
+  /** Quante volte nell'anno. Per 'una-tantum' vale 1. */
   ricorrenze: number
-  /** 0 = spalmata su 12 mesi; 1-12 = esce tutta in quel mese. */
-  mese: number
+  cadenza: Cadenza
+  /** 1-12, solo per 'una-tantum'. Null per le voci ricorrenti. */
+  mese: number | null
   /** Se true è un trasferimento a risparmio, non una spesa. */
   risparmio: boolean
   note?: string
@@ -108,6 +127,7 @@ export interface DatiUtente {
   profilo: Profilo
   fatture: Fattura[]
   previsione: RigaPrevisione[]
+  categorie: Categoria[]
   uscite: Uscita[]
   dipendente: DatiDipendente
   annoPrecedente: DatiAnnoPrecedente
@@ -190,6 +210,12 @@ export interface Modulo {
   opzionali?: string[]
   /** Chiavi che il modulo pubblica. */
   fornisce: string[]
+  /**
+   * Percorsi dentro le regole fiscali che questo modulo legge davvero, dato
+   * il profilo dell'utente. Serve ad avvisare solo sui parametri non
+   * verificati che entrano nel suo calcolo, invece che su tutti.
+   */
+  regoleUsate?(dati: DatiUtente): string[]
   calcola(ctx: Contesto): Contributo
   kpi(): Kpi[]
 }

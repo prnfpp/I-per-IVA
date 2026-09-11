@@ -106,19 +106,32 @@ export function calcola(dati: DatiUtente): Risultato {
       messaggio: `Non ci sono regole per il ${anno}: sto usando quelle del ${regole.anno}. I numeri sono indicativi.`,
     })
   }
-  const daVerificare = parametriDaVerificare(regole)
-  if (daVerificare.length) {
-    ctx.avvisi.push({
-      livello: 'info',
-      modulo: 'regole',
-      messaggio: `Parametri non ancora verificati su fonte primaria: ${daVerificare.join(', ')}.`,
-    })
-  }
-
   const attivi = moduli().filter(
     (m) => m.obbligatorio || dati.profilo.moduliAttivi.includes(m.id),
   )
   const ordinati = ordina(attivi)
+
+  // Avvisare su tutti i parametri non verificati significa avvisare quasi
+  // sempre su regole che l'utente non usa - le gestioni Artigiani e
+  // Commercianti a un professionista in Gestione Separata, le addizionali
+  // IRPEF a chi non ha un contratto da dipendente. Un avviso che non si puo'
+  // far sparire smette di essere letto, e con lui quelli che contano. Ogni
+  // modulo dichiara quali percorsi delle regole legge davvero, e qui si tiene
+  // solo l'intersezione.
+  const usati = ordinati.flatMap((m) => m.regoleUsate?.(dati) ?? [])
+  const pertinente = (percorso: string) =>
+    usati.some((u) => percorso === u || percorso.startsWith(`${u}.`) || u.startsWith(`${percorso}.`))
+  const daVerificare = parametriDaVerificare(regole).filter((p) => pertinente(p.percorso))
+  if (daVerificare.length) {
+    ctx.avvisi.push({
+      livello: 'info',
+      modulo: 'regole',
+      messaggio: `Parametri usati da questo calcolo ma non ancora verificati su fonte primaria: ${daVerificare
+        .map((p) => (p.fonte ? `${p.percorso} (${p.fonte})` : p.percorso))
+        .join('; ')}`,
+    })
+  }
+
   for (const m of ordinati) {
     unisci(ctx, m.calcola(ctx))
   }

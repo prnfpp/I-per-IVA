@@ -5,8 +5,10 @@ import {
   datiIniziali,
   euro,
   ralDaNetto,
+  ripartisciSuIncassi,
   type DatiUtente,
   type Fattura,
+  type Uscita,
 } from '@iperiva/core'
 import { regolePerAnno } from '@iperiva/rules'
 
@@ -227,7 +229,179 @@ describe('calendario F24 col metodo storico', () => {
     const { contesto } = calcola(d)
     const v = contesto.valori
     expect(v.obiettivoFondoTasse).toBe(v.saldoAnnoCorrente + v.accontiAnnoProssimo)
-    expect(v.accantonamentoMensile).toBe(Math.round(v.obiettivoFondoTasse / 12))
+  })
+
+  /**
+   * Il fondo tasse paga le due rate F24 mentre l'anno scorre. Quello che va
+   * versato durante l'anno e' quindi l'obiettivo piu' le due rate, meno il
+   * saldo gia' presente: la vecchia formula obiettivo/12 le ignorava e il
+   * fondo chiudeva l'anno corto di tutta la cifra degli F24.
+   */
+  it('il piano di versamento copre anche le due rate che il fondo paghera', () => {
+    const d = scenarioBase()
+    d.annoPrecedente = {
+      impostaDovuta: euro(3895.88),
+      contributiDovuti: euro(9158.7),
+      accontiVersati: euro(13054.58),
+    }
+    d.saldoFondoTasse = euro(4000)
+    const { contesto } = calcola(d)
+    const v = contesto.valori
+    expect(v.daAccantonareNellAnno).toBe(
+      v.obiettivoFondoTasse + v.f24Giugno + v.f24Novembre - euro(4000),
+    )
+    expect(v.accantonamentoMensile).toBe(Math.round(v.daAccantonareNellAnno / 12))
+    // A dicembre nel fondo c'e' esattamente l'obiettivo, non meno.
+    expect(v.saldoFinaleFondoTasse).toBe(v.obiettivoFondoTasse)
+  })
+
+  /**
+   * Regressione: prima l'accantonamento aveva un minimo mensile fisso che
+   * usciva dal conto corrente anche nei mesi senza incassi, ed era quello a
+   * generare lo scoperto che poi l'app addebitava alle spese dell'utente.
+   */
+  it('non accantona niente nei mesi in cui non e entrato niente', () => {
+    const d = datiIniziali(2026)
+    d.profilo.coefficiente = 0.78
+    d.fatture = [fattura(1, 10000), fattura(2, 10000)]
+    d.annoPrecedente = { impostaDovuta: euro(3000), contributiDovuti: euro(7000), accontiVersati: 0 }
+    const { contesto } = calcola(d)
+    const acc = contesto.serie.accantonamentiMensili
+    expect(acc.slice(2).every((v) => v === 0)).toBe(true)
+    expect(acc[0]).toBeGreaterThan(0)
+    // e mai piu' di quanto quel mese ha incassato
+    contesto.serie.incassiMensili.forEach((inc, i) => {
+      expect(acc[i]).toBeLessThanOrEqual(inc)
+    })
+  })
+
+  it('dichiara quello che gli incassi non riescono a coprire invece di prelevarlo', () => {
+    const d = datiIniziali(2026)
+    d.profilo.coefficiente = 0.78
+    d.fatture = [fattura(1, 1000)]
+    d.annoPrecedente = {
+      impostaDovuta: euro(9000),
+      contributiDovuti: euro(9000),
+      accontiVersati: 0,
+    }
+    const { contesto } = calcola(d)
+    expect(contesto.valori.accantonamentoNonCoperto).toBeGreaterThan(0)
+    expect(
+      contesto.avvisi.some((a) => a.modulo === 'acconti' && /non bastano/.test(a.messaggio)),
+    ).toBe(true)
+  })
+})
+
+describe('ripartizione dell accantonamento sugli incassi', () => {
+  it('non chiede a un mese piu di quanto ha incassato e ridistribuisce il resto', () => {
+    const incassi = [euro(100), euro(1000), 0, euro(500)]
+    const { quote, nonCoperto } = ripartisciSuIncassi(euro(800), incassi)
+    expect(nonCoperto).toBe(0)
+    expect(quote.reduce((a, b) => a + b, 0)).toBe(euro(800))
+    quote.forEach((q, i) => expect(q).toBeLessThanOrEqual(incassi[i]))
+    expect(quote[2]).toBe(0)
+  })
+
+  it('segnala la parte che gli incassi non coprono', () => {
+    const { quote, nonCoperto } = ripartisciSuIncassi(euro(5000), [euro(300), euro(200)])
+    expect(quote).toEqual([euro(300), euro(200)])
+    expect(nonCoperto).toBe(euro(4500))
+  })
+
+  it('non tocca niente quando non e entrato niente', () => {
+    const { quote, nonCoperto } = ripartisciSuIncassi(euro(1000), Array(12).fill(0))
+    expect(quote.every((q) => q === 0)).toBe(true)
+    expect(nonCoperto).toBe(euro(1000))
+  })
+})
+
+describe('uscite: cadenza e categorie', () => {
+  function conUscita(extra: Partial<Uscita>): DatiUtente {
+    const d = datiIniziali(2026)
+    d.profilo.moduliAttivi = ['regola503020']
+    d.uscite = [
+      {
+        id: 'u1',
+        categoria: 'Casa',
+        voce: 'Affitto',
+        costoUnitario: euro(600),
+        ricorrenze: 12,
+        cadenza: 'ricorrente',
+        mese: null,
+        risparmio: false,
+        ...extra,
+      },
+    ]
+    return d
+  }
+
+  it('spalma le voci ricorrenti su dodici mesi', () => {
+    const { contesto } = calcola(conUscita({}))
+    expect(contesto.serie.speseMensili).toEqual(Array(12).fill(euro(600)))
+  })
+
+  it('addebita le voci una tantum nel loro mese', () => {
+    const d = conUscita({ cadenza: 'una-tantum', mese: 4, ricorrenze: 1, costoUnitario: euro(520) })
+    const { contesto } = calcola(d)
+    expect(contesto.serie.speseMensili[3]).toBe(euro(520))
+    expect(contesto.serie.speseMensili.filter((v) => v > 0)).toHaveLength(1)
+  })
+
+  it('segnala la combinazione contraddittoria invece di correggerla', () => {
+    const d = conUscita({ cadenza: 'una-tantum', mese: 5, ricorrenze: 12 })
+    const { contesto } = calcola(d)
+    expect(contesto.serie.speseMensili[4]).toBe(euro(7200))
+    expect(contesto.avvisi.some((a) => a.modulo === 'uscite')).toBe(true)
+  })
+
+  /**
+   * Regressione: una categoria fuori dall'elenco finiva in silenzio nello
+   * svago. Ora resta fuori dalle quote e viene detta.
+   */
+  it('non assegna d ufficio una categoria senza blocco', () => {
+    const d = conUscita({ categoria: 'Auto' })
+    d.categorie.push({ nome: 'Auto', blocco: null })
+    d.fatture = [fattura(1, 30000)]
+    const { contesto } = calcola(d)
+    expect(contesto.valori.speseNonAssegnate).toBe(euro(7200))
+    expect(contesto.valori.quotaSvago).toBe(0)
+    expect(
+      contesto.avvisi.some((a) => a.modulo === 'regola503020' && /Auto/.test(a.messaggio)),
+    ).toBe(true)
+  })
+
+  it('conta la categoria nel blocco che dichiara', () => {
+    const d = conUscita({ categoria: 'Auto' })
+    d.categorie.push({ nome: 'Auto', blocco: 'necessita' })
+    d.fatture = [fattura(1, 30000)]
+    const { contesto } = calcola(d)
+    expect(contesto.valori.speseNonAssegnate).toBe(0)
+    expect(contesto.valori.quotaNecessita).toBeGreaterThan(0)
+  })
+})
+
+describe('avvisi sui parametri non verificati', () => {
+  const avvisoRegole = (d: DatiUtente) =>
+    calcola(d).contesto.avvisi.find((a) => a.modulo === 'regole' && /non ancora verificati/.test(a.messaggio))
+
+  it('tace su gestioni e addizionali che il profilo non usa', () => {
+    const d = datiIniziali(2026)
+    d.profilo.gestione = 'gestione_separata'
+    d.profilo.moduliAttivi = []
+    expect(avvisoRegole(d)).toBeUndefined()
+  })
+
+  it('avvisa sulla gestione scelta quando non e verificata', () => {
+    const d = datiIniziali(2026)
+    d.profilo.gestione = 'artigiani'
+    d.profilo.moduliAttivi = []
+    expect(avvisoRegole(d)?.messaggio).toContain('previdenza.artigiani')
+  })
+
+  it('avvisa sulle addizionali solo con il modulo dipendente acceso', () => {
+    const d = datiIniziali(2026)
+    d.profilo.moduliAttivi = ['dipendente']
+    expect(avvisoRegole(d)?.messaggio).toContain('lavoroDipendente.addizionali')
   })
 })
 

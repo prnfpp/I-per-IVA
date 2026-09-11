@@ -1,5 +1,5 @@
 import { euro } from './denaro.js'
-import { datiIniziali } from './datiIniziali.js'
+import { CATEGORIE_PREDEFINITE, datiIniziali } from './datiIniziali.js'
 import type { DatiUtente } from './tipi.js'
 
 /**
@@ -42,26 +42,29 @@ export function datiEsempio(anno = 2026): DatiUtente {
     mesi: Array(12).fill(euro(importo)),
   }))
 
-  const uscite: [string, string, number, number, number, boolean][] = [
-    ['Casa', 'Affitto', 600, 12, 0, false],
-    ['Casa', 'Bollette', 90, 12, 0, false],
-    ['Casa', 'Spesa alimentare', 300, 12, 0, false],
+  // categoria, voce, costo, ricorrenze nell'anno, mese (null = ricorrente), risparmio
+  const uscite: [string, string, number, number, number | null, boolean][] = [
+    ['Casa', 'Affitto', 600, 12, null, false],
+    ['Casa', 'Bollette', 90, 12, null, false],
+    ['Casa', 'Spesa alimentare', 300, 12, null, false],
     ['P.IVA', 'Commercialista', 700, 1, 3, false],
-    ['P.IVA', 'Software e abbonamenti', 40, 12, 0, false],
-    ['Macchina', 'Carburante', 80, 12, 0, false],
+    ['P.IVA', 'Software e abbonamenti', 40, 12, null, false],
+    ['Macchina', 'Carburante', 80, 12, null, false],
     ['Macchina', 'Assicurazione', 520, 1, 4, false],
     ['Macchina', 'Bollo', 200, 1, 5, false],
-    ['Cura della persona', 'Dentista e visite', 90, 4, 0, false],
-    ['Tempo Libero', 'Uscite e sport', 150, 12, 0, false],
+    ['Cura della persona', 'Dentista e visite', 90, 4, null, false],
+    ['Tempo Libero', 'Uscite e sport', 150, 12, null, false],
     ['Tempo Libero', 'Vacanza estiva', 900, 1, 7, false],
-    ['Risparmio', 'PAC mensile su ETF', 300, 12, 0, true],
+    ['Risparmio', 'PAC mensile su ETF', 300, 12, null, true],
   ]
+  d.categorie = CATEGORIE_PREDEFINITE.map((c) => ({ ...c }))
   d.uscite = uscite.map(([categoria, voce, costo, ricorrenze, mese, risparmio], i) => ({
     id: `esempio-uscita-${i}`,
     categoria,
     voce,
     costoUnitario: euro(costo),
     ricorrenze,
+    cadenza: mese === null ? ('ricorrente' as const) : ('una-tantum' as const),
     mese,
     risparmio,
   }))

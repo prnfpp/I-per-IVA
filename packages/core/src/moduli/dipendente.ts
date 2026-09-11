@@ -152,6 +152,10 @@ export const moduloDipendente: Modulo = {
     'sogliaRedditoDipendente',
   ],
 
+  regoleUsate() {
+    return ['lavoroDipendente', 'irpef']
+  },
+
   calcola(ctx: Contesto): Contributo {
     const d = ctx.dati.dipendente
     const soglia = Math.round(ctx.regole.forfettario.sogliaRedditoDipendente * 100)

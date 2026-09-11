@@ -1,8 +1,14 @@
 import { somma } from '../denaro.js'
-import type { Contesto, Contributo, Kpi, Modulo, Movimento } from '../tipi.js'
+import type { Contesto, Contributo, Kpi, Modulo, Movimento, Uscita } from '../tipi.js'
 
-function totale(u: { costoUnitario: number; ricorrenze: number }): number {
+export function totaleUscita(u: Pick<Uscita, 'costoUnitario' | 'ricorrenze'>): number {
   return Math.round(u.costoUnitario * u.ricorrenze)
+}
+
+/** Il mese di addebito, oppure null se la voce va spalmata su dodici mesi. */
+function meseDiAddebito(u: Uscita): number | null {
+  if (u.cadenza !== 'una-tantum') return null
+  return u.mese !== null && u.mese >= 1 && u.mese <= 12 ? u.mese : null
 }
 
 export const moduloUscite: Modulo = {
@@ -20,10 +26,11 @@ export const moduloUscite: Modulo = {
     const risparmi = Array(12).fill(0)
 
     for (const u of uscite) {
-      const tot = totale(u)
+      const tot = totaleUscita(u)
       const dest = u.risparmio ? risparmi : spese
-      if (u.mese >= 1 && u.mese <= 12) {
-        dest[u.mese - 1] += tot
+      const mese = meseDiAddebito(u)
+      if (mese !== null) {
+        dest[mese - 1] += tot
       } else {
         const quota = Math.round(tot / 12)
         for (let i = 0; i < 12; i++) dest[i] += quota
@@ -32,7 +39,7 @@ export const moduloUscite: Modulo = {
 
     const perCategoria: Record<string, number> = {}
     for (const u of uscite) {
-      perCategoria[u.categoria] = (perCategoria[u.categoria] ?? 0) + totale(u)
+      perCategoria[u.categoria] = (perCategoria[u.categoria] ?? 0) + totaleUscita(u)
     }
 
     const movimenti: Movimento[] = []
@@ -55,6 +62,17 @@ export const moduloUscite: Modulo = {
       }),
     )
 
+    // Residuo dei file scritti prima che cadenza esistesse: una voce una
+    // tantum ripetuta piu' volte addebita tutto nello stesso mese. E' quasi
+    // sempre un errore di compilazione, ma i numeri sono dell'utente: si
+    // segnala, non si corregge d'ufficio.
+    const contraddittorie = uscite.filter((u) => u.cadenza === 'una-tantum' && u.ricorrenze > 1)
+    const avvisi: Contributo['avvisi'] = contraddittorie.map((u) => ({
+      livello: 'attenzione',
+      modulo: 'uscite',
+      messaggio: `"${u.voce || u.categoria}" e' una spesa una tantum ripetuta ${u.ricorrenze} volte: l'intero importo viene addebitato nel mese ${u.mese ?? '?'}. Se e' una spesa che torna ogni mese, impostala come ricorrente.`,
+    }))
+
     return {
       valori: {
         usciteTotali: somma(spese) + somma(risparmi),
@@ -66,6 +84,7 @@ export const moduloUscite: Modulo = {
       },
       serie: { speseMensili: spese, risparmiMensili: risparmi },
       movimenti,
+      avvisi,
     }
   },
 

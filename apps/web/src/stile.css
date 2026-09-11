@@ -89,3 +89,12 @@ footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--bordo)
 .guida p, .guida li { line-height: 1.6; font-size: 14px; }
 .guida ol { padding-left: 22px; }
 .guida li { margin-bottom: 10px; }
+
+/* Contenitore per le tabelle larghe: scorre la tabella, non la pagina.
+   Le nuove schede Uscite e Patrimonio hanno rispettivamente otto e dieci
+   colonne e senza questo trascinerebbero di lato l'intero documento. */
+.tabella { overflow-x: auto; }
+.tabella table { min-width: max-content; }
+
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+button:disabled:hover { border-color: var(--bordo); }

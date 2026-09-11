@@ -34,13 +34,29 @@ export function annoCoperto(anno: number): boolean {
   return Boolean(grezze[anno])
 }
 
-/** Elenco dei parametri non ancora verificati su fonte primaria. */
-export function parametriDaVerificare(regole: Regole): string[] {
-  const out: string[] = []
+export interface ParametroDaVerificare {
+  /** Percorso dentro le regole, es. `previdenza.artigiani`. */
+  percorso: string
+  /** Il campo `fonte` del nodo: spiega in italiano da dove viene il valore. */
+  fonte: string
+}
+
+/**
+ * Elenco dei parametri non ancora verificati su fonte primaria.
+ * Torna anche la `fonte`, cosi’ chi mostra l’avviso puo’ dire perche’ quel
+ * numero e’ incerto invece del solo percorso tecnico.
+ */
+export function parametriDaVerificare(regole: Regole): ParametroDaVerificare[] {
+  const out: ParametroDaVerificare[] = []
   const visita = (nodo: unknown, percorso: string) => {
     if (!nodo || typeof nodo !== 'object') return
     const obj = nodo as Record<string, unknown>
-    if (obj.verificato === false) out.push(percorso || '(radice)')
+    if (obj.verificato === false) {
+      out.push({
+        percorso: percorso || '(radice)',
+        fonte: typeof obj.fonte === 'string' ? obj.fonte : '',
+      })
+    }
     for (const [k, v] of Object.entries(obj)) {
       if (v && typeof v === 'object') visita(v, percorso ? `${percorso}.${k}` : k)
     }

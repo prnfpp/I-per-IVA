@@ -1,6 +1,23 @@
 import { max0, mul } from '../denaro.js'
 import type { Contesto, Contributo, Kpi, Modulo, Strumento } from '../tipi.js'
 
+/**
+ * Tipi di strumento riconosciuti. E' un elenco chiuso perche' il modulo fa un
+ * confronto esatto su 'ETF azionario' per avvisare quando un titolo di rischio
+ * e' assegnato a un orizzonte breve: con il testo libero quel controllo si
+ * spegne da solo alla prima variante di scrittura.
+ */
+export const TIPI_STRUMENTO = [
+  'ETF azionario',
+  'ETF obbligazionario',
+  'ETF monetario',
+  'Fondo comune',
+  'Azione singola',
+  'Titolo di Stato',
+  'Conto deposito',
+  'Altro',
+] as const
+
 /** Valore netto di uno strumento, al netto del capital gain sulla sola plusvalenza. */
 export function valoreNetto(s: Strumento, aliquota: number, aliquotaStato: number): number {
   const lordo = Math.round(s.prezzoMercato * s.quantita)
@@ -31,6 +48,10 @@ export const moduloPatrimonio: Modulo = {
     'obiettivoFondoEmergenza',
     'coperturaFondoEmergenza',
   ],
+
+  regoleUsate() {
+    return ['investimenti']
+  },
 
   calcola(ctx: Contesto): Contributo {
     const inv = ctx.regole.investimenti

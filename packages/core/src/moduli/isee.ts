@@ -10,6 +10,10 @@ export const moduloIsee: Modulo = {
   richiede: [],
   fornisce: ['isr', 'ispMobiliare', 'ispImmobiliare', 'isp', 'ise', 'isee', 'scalaEquivalenza'],
 
+  regoleUsate() {
+    return ['isee']
+  },
+
   calcola(ctx: Contesto): Contributo {
     const r = ctx.regole.isee
     const d = ctx.dati.isee

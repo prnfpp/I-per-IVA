@@ -1,5 +1,24 @@
 import { euro } from './denaro.js'
-import { SCHEMA_VERSION, type DatiUtente } from './tipi.js'
+import { SCHEMA_VERSION, type Blocco, type Categoria, type DatiUtente } from './tipi.js'
+
+/**
+ * Categorie proposte a chi comincia. Non sono un vincolo: si aggiungono,
+ * si rinominano e si cancellano. L'unica regola e' che ognuna dichiari il
+ * proprio blocco, perche' la regola 50-30-20 non deve indovinare niente.
+ */
+export const CATEGORIE_PREDEFINITE: Categoria[] = [
+  { nome: 'Casa', blocco: 'necessita' },
+  { nome: 'Macchina', blocco: 'necessita' },
+  { nome: 'P.IVA', blocco: 'necessita' },
+  { nome: 'Cura della persona', blocco: 'necessita' },
+  { nome: 'Salute', blocco: 'necessita' },
+  { nome: 'Studio', blocco: 'necessita' },
+  { nome: 'Abbonamenti', blocco: 'svago' },
+  { nome: 'Hobby', blocco: 'svago' },
+  { nome: 'Tempo Libero', blocco: 'svago' },
+  { nome: 'Altro', blocco: 'svago' },
+  { nome: 'Risparmio', blocco: 'risparmio' },
+]
 
 /** Stato iniziale di un nuovo utente. Nessun dato di esempio inventato. */
 export function datiIniziali(anno = new Date().getFullYear()): DatiUtente {
@@ -19,6 +38,7 @@ export function datiIniziali(anno = new Date().getFullYear()): DatiUtente {
     },
     fatture: [],
     previsione: [],
+    categorie: CATEGORIE_PREDEFINITE.map((c) => ({ ...c })),
     uscite: [],
     dipendente: {
       attivo: false,
@@ -55,7 +75,48 @@ export function datiIniziali(anno = new Date().getFullYear()): DatiUtente {
  * aggiunge un gradino qui: chi ha un file vecchio non lo perde.
  */
 const migrazioni: Record<number, (d: any) => any> = {
-  // 0: (d) => ({ ...d, schemaVersion: 1, ...})
+  /**
+   * v1 -> v2. Due cambiamenti, entrambi per togliere di mezzo un'assunzione
+   * implicita.
+   *
+   * Le categorie diventano un registro esplicito con il blocco dichiarato.
+   * Prima il blocco si deduceva confrontando il nome della categoria con un
+   * elenco fisso, e chi non corrispondeva finiva nello svago senza saperlo:
+   * qui le categorie ignote nascono con `blocco: null`, cioe' da assegnare.
+   *
+   * `mese: 0` come sinonimo di "ricorrente" diventa un campo `cadenza`.
+   * I valori esistenti non vengono toccati, nemmeno quando sono la
+   * combinazione contraddittoria (una tantum ripetuta dodici volte): quella
+   * la segnala il modulo uscite, non la migrazione, perche' cambiare in
+   * silenzio i numeri di qualcun altro e' peggio del difetto che si ripara.
+   */
+  1: (d) => {
+    const uscite = Array.isArray(d.uscite) ? d.uscite : []
+    const noti = new Map<string, Blocco | null>(
+      CATEGORIE_PREDEFINITE.map((c) => [c.nome, c.blocco]),
+    )
+    const categorie: Categoria[] = CATEGORIE_PREDEFINITE.map((c) => ({ ...c }))
+    for (const u of uscite) {
+      const nome = String(u?.categoria ?? '').trim()
+      if (!nome || noti.has(nome)) continue
+      noti.set(nome, null)
+      categorie.push({ nome, blocco: null })
+    }
+    return {
+      ...d,
+      schemaVersion: 2,
+      categorie,
+      uscite: uscite.map((u: any) => {
+        const mese = Number(u?.mese ?? 0)
+        const unaTantum = mese >= 1 && mese <= 12
+        return {
+          ...u,
+          cadenza: unaTantum ? 'una-tantum' : 'ricorrente',
+          mese: unaTantum ? mese : null,
+        }
+      }),
+    }
+  },
 }
 
 export function migra(grezzi: unknown): DatiUtente {

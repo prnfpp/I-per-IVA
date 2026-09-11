@@ -101,6 +101,29 @@ describe('file utente', () => {
   it('rifiuta un file scritto da una versione futura', () => {
     expect(() => migra({ schemaVersion: 99 })).toThrow(/piu' recente/)
   })
+
+  it('migra un file v1 a categorie esplicite e cadenza', () => {
+    const v1 = {
+      ...datiIniziali(2026),
+      schemaVersion: 1,
+      categorie: undefined,
+      uscite: [
+        { id: 'a', categoria: 'Casa', voce: 'Affitto', costoUnitario: euro(600), ricorrenze: 12, mese: 0, risparmio: false },
+        { id: 'b', categoria: 'Auto', voce: 'Bollo', costoUnitario: euro(200), ricorrenze: 1, mese: 5, risparmio: false },
+      ],
+    }
+    const d = migra(JSON.parse(JSON.stringify(v1)))
+
+    expect(d.schemaVersion).toBe(2)
+    expect(d.uscite[0].cadenza).toBe('ricorrente')
+    expect(d.uscite[0].mese).toBeNull()
+    expect(d.uscite[1].cadenza).toBe('una-tantum')
+    expect(d.uscite[1].mese).toBe(5)
+
+    // Casa era gia' nota, Auto no: nasce da assegnare, non indovinata.
+    expect(d.categorie.find((c) => c.nome === 'Casa')?.blocco).toBe('necessita')
+    expect(d.categorie.find((c) => c.nome === 'Auto')?.blocco).toBeNull()
+  })
 })
 
 describe('dati di esempio', () => {

@@ -70,6 +70,10 @@ export const moduloForfettario: Modulo = {
     'utilizzoSogliaRicavi',
   ],
 
+  regoleUsate(dati) {
+    return ['forfettario', `previdenza.${dati.profilo.gestione}`]
+  },
+
   calcola(ctx: Contesto): Contributo {
     const { forfettario, previdenza } = ctx.regole
     const p = ctx.dati.profilo

@@ -26,6 +26,8 @@ Un file per anno: `data/it-2025.json`, `it-2026.json`, `it-2027.json`. Ogni sezi
 
 Quel flag non è decorativo: `parametriDaVerificare()` lo raccoglie e l'app lo mostra come avviso all'utente. Chi usa Quadro deve sapere quali numeri sono controllati e quali no. Oggi le gestioni Artigiani e Commercianti e le addizionali regionali sono marcate come non verificate.
 
+L'avviso però riguarda solo i parametri che il calcolo ha davvero letto. Ogni modulo dichiara i percorsi delle regole che usa in `regoleUsate(dati)` — `forfettario` restituisce `previdenza.<gestione scelta>`, `dipendente` restituisce `lavoroDipendente` e `irpef` — e il registro tiene l'intersezione con l'elenco dei non verificati. Prima si avvisava su tutti: un professionista in Gestione Separata senza contratto si vedeva segnalare Artigiani, Commercianti e le addizionali IRPEF, cioè tre regole che non lo toccavano, per sempre e senza poterle far sparire. Un avviso che non si può chiudere smette di essere letto, e si porta dietro quelli che contano. L'avviso riporta anche il campo `fonte` del parametro, perché dica perché quel numero è incerto e non solo dove sta.
+
 Se si chiede un anno che non esiste, il loader usa il più recente disponibile e genera un avviso. La scelta è deliberata: un calcolo dichiaratamente approssimato è più utile di una schermata di errore, purché lo dica.
 
 ## Il modello dati
@@ -33,6 +35,12 @@ Se si chiede un anno che non esiste, il loader usa il più recente disponibile e
 Un unico documento JSON per utente, con `schemaVersion`. Le migrazioni stanno in `datiIniziali.ts` come gradini numerati: un file scritto con una versione vecchia si aggiorna, uno scritto con una versione più nuova viene rifiutato con un messaggio chiaro invece di essere letto male.
 
 Distinzione che regge tutto il resto: **competenza** e **cassa**. Una `Fattura` ha `dataEmissione` (competenza) e `dataIncasso` (cassa, nullable). Il forfettario tassa per cassa, la previsione ragiona per competenza, e tenerle separate nel tipo evita l'errore più comune dei fogli di calcolo fatti a mano.
+
+Due scelte dello schema v2 seguono lo stesso principio: rendere impossibile lo stato sbagliato invece di segnalarlo dopo.
+
+Le **categorie di spesa** sono un registro esplicito (`Categoria { nome, blocco }`) invece di testo libero. Prima il blocco della regola 50-30-20 si deduceva confrontando il nome della categoria con un elenco fisso nel codice, e chi scriveva «Auto» invece di «Macchina» si ritrovava l'assicurazione contata come svago. Ora il blocco è dichiarato sulla categoria e `blocco: null` significa "da assegnare": quelle spese restano fuori dalle quote e vengono elencate in un avviso, mai assegnate d'ufficio.
+
+La **cadenza** di un'uscita è un campo (`'ricorrente' | 'una-tantum'`) invece di un valore sentinella. Prima `mese: 0` significava ricorrente, e niente impediva la combinazione contraddittoria mese 5 con dodici ricorrenze, che addebitava l'intero anno di affitto in un mese solo senza dire niente. La migrazione v1→v2 non tocca i numeri di chi aveva già quella combinazione — cambiare in silenzio i dati di qualcun altro è peggio del difetto — ma il modulo `uscite` la segnala e la UI non permette più di crearla.
 
 ## Il registro dei moduli
 
@@ -66,6 +74,16 @@ I moduli che spostano denaro emettono `Movimento`:
 Il modulo `cassa` non ha logica propria: riduce la lista dei movimenti in dodici saldi progressivi. Aggiungere un modulo che genera flussi lo fa comparire in cassa senza modificare una riga di `cassa.ts`.
 
 `impattaContoCorrente: false` serve per gli F24, che escono dal fondo tasse alimentato mese per mese. Se il fondo va sotto zero, il modulo `acconti` emette un avviso di livello `errore`: è lì che l'utente scopre che la rata di giugno finirà sul conto corrente.
+
+## L'accantonamento segue la cassa
+
+Il piano di versamento sul fondo tasse aveva due difetti, corretti insieme perché sono lo stesso errore visto da due lati: trattare l'accantonamento come una rata di calendario invece che come una quota di quello che entra.
+
+Il primo: la cifra da versare nell'anno era `obiettivo`, cioè quello che uscirà l'anno prossimo. Ma il fondo, nel frattempo, paga anche le due rate di quest'anno. La cifra giusta è `obiettivo + f24Giugno + f24Novembre - saldoFondoTasse`, e con la vecchia formula il fondo chiudeva l'anno corto esattamente dell'importo degli F24 — un errore che si scopre il giugno successivo, quando non ci sono i soldi.
+
+Il secondo, peggiore: la quota mensile era `max(incasso × percentuale, obiettivo / 12)`, cioè un minimo fisso che usciva dal conto corrente **anche nei mesi a zero incassi**. Era quel minimo, non le spese dell'utente, a generare lo scoperto di dicembre che l'app poi segnalava consigliando di spostare una spesa.
+
+Oggi `ripartisciSuIncassi()` distribuisce il totale in proporzione a quanto è entrato ogni mese, e non chiede a un mese più del suo incasso: nei mesi a zero non si tocca niente. Quando gli incassi dell'anno non bastano a coprire il totale, la differenza torna indietro come `accantonamentoNonCoperto` e diventa un avviso. È una scelta deliberata: il denaro che manca si dichiara, non si preleva dal saldo di soppiatto.
 
 ## Gestioni previdenziali
 

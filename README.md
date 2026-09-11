@@ -29,7 +29,7 @@ Sempre attivo:
 | Modulo | Cosa calcola |
 | --- | --- |
 | `forfettario` | Imposta sostitutiva e contributi sugli incassi, per cassa. Soglie di 85.000 e 100.000 euro |
-| `acconti` | Scadenze di giugno e novembre, obiettivo del fondo tasse, piano di accantonamento mensile |
+| `acconti` | Scadenze di giugno e novembre, obiettivo del fondo tasse, piano di accantonamento calcolato sugli incassi |
 | `uscite` | Spese ricorrenti e una tantum, risparmio programmato |
 | `cassa` | Saldo del conto corrente mese per mese, con segnalazione degli scoperti |
 
@@ -39,7 +39,7 @@ Da accendere solo se ti riguarda:
 | --- | --- |
 | `previsione` | Chi vuole sapere quanto accantonare già a gennaio, quando l'incassato è ancora quasi zero |
 | `dipendente` | Chi ha o valuta un contratto: lordo/netto con tredicesima e quattordicesima, TFR, e il controllo sulla soglia che fa perdere il forfettario |
-| `patrimonio` | Chi vuole vedere il patrimonio diviso per orizzonte temporale, secondo i quattro pilastri |
+| `patrimonio` | Chi vuole vedere il patrimonio diviso per orizzonte temporale, secondo i quattro pilastri, con il portafoglio al netto del capital gain |
 | `isee` | Chi deve presentare una DSU e vuole sapere in che fascia cade |
 | `regola503020` | Chi vuole controllare la ripartizione delle uscite sul netto disponibile |
 
@@ -61,7 +61,7 @@ Cosa viene dopo: [documentazione/ROADMAP.md](documentazione/ROADMAP.md).
 git clone https://github.com/prnfpp/I-per-IVA.git
 cd I-per-IVA
 npm install
-npm test        # 40 scenari di calcolo
+npm test        # 55 scenari di calcolo
 npm run dev     # apre l'app in locale
 npm run build   # ricompila la cartella docs/ pubblicata da GitHub Pages
 ```
