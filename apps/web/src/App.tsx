@@ -10,10 +10,12 @@ import {
   totaleUscita,
   valoreNettoStrumento,
   TIPI_STRUMENTO,
+  type Avviso,
   type Blocco,
   type Contesto,
   type DatiUtente,
   type Kpi,
+  type SerieMensile,
 } from '@iperiva/core'
 import { anniDisponibili } from '@iperiva/rules'
 import { useStato } from './stato.js'
@@ -104,9 +106,7 @@ export function App() {
     )
   }
 
-  const { contesto, kpi, moduliCalcolati } = risultato
-  const gruppi = [...new Set(kpi.map((k) => k.gruppo))]
-
+  const { contesto, kpi, serie, moduliCalcolati } = risultato
   const schede: [Scheda, string, boolean][] = [
     ['guida', 'Come funziona', true],
     ['dashboard', 'Riepilogo', true],
@@ -154,14 +154,12 @@ export function App() {
         </section>
       )}
 
-      {contesto.avvisi.length > 0 && (
-        <section className="avvisi">
-          {contesto.avvisi.map((a, i) => (
-            <p key={i} className={`avviso ${a.livello}`}>
-              <strong>{a.modulo}</strong> {a.messaggio}
-            </p>
-          ))}
-        </section>
+      {!vuoto && (
+        <BandaAvvisi
+          avvisi={contesto.avvisi}
+          schedeVisibili={schede.filter(([, , v]) => v).map(([id]) => id)}
+          vai={setScheda}
+        />
       )}
 
       {scheda === 'guida' && (
@@ -242,58 +240,7 @@ export function App() {
       )}
 
       {scheda === 'dashboard' && (
-        <>
-          {gruppi.map((gruppo) => (
-            <section key={gruppo}>
-              <h2>{gruppo}</h2>
-              <div className="griglia">
-                {kpi
-                  .filter((k) => k.gruppo === gruppo)
-                  .map((k) => {
-                    const stato = k.semaforo?.(contesto)
-                    return (
-                      <div key={k.chiave} className="scheda">
-                        <span className="etichetta">{k.etichetta}</span>
-                        <span className="valore">{valoreKpi(k, contesto)}</span>
-                        {stato && (
-                          <span className={`semaforo ${stato === 'OK' ? 'ok' : 'allerta'}`}>
-                            {stato}
-                          </span>
-                        )}
-                        {k.nota && <span className="nota">{k.nota}</span>}
-                      </div>
-                    )
-                  })}
-              </div>
-            </section>
-          ))}
-
-          <section>
-            <h2>Andamento mensile</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th>Serie</th>
-                  {MESI.map((m) => (
-                    <th key={m}>{m}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(contesto.serie).map(([nome, serie]) => (
-                  <tr key={nome}>
-                    <th>{nome}</th>
-                    {serie.map((v, i) => (
-                      <td key={i} className={v < 0 ? 'negativo' : ''}>
-                        {formatta(v)}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
-        </>
+        <Riepilogo dati={dati} contesto={contesto} kpi={kpi} serie={serie} vuoto={vuoto} />
       )}
 
       {scheda === 'fatture' && (
@@ -1528,6 +1475,365 @@ function SchedaPatrimonio({
           Aggiungi strumento
         </button>
       </section>
+    </>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Avvisi
+// ---------------------------------------------------------------------------
+
+/**
+ * Dove si va per rimediare, e con che parole. La mappa sta qui e non nel core
+ * perche' e' navigazione, cioe' un fatto dell'interfaccia: il modulo `cassa`
+ * non deve sapere che esiste una scheda chiamata Uscite.
+ */
+const RIMEDIO: Record<string, [Scheda, string]> = {
+  cassa: ['uscite', 'Apri Uscite'],
+  acconti: ['impostazioni', 'Apri Impostazioni'],
+  uscite: ['uscite', 'Apri Uscite'],
+  regola503020: ['uscite', 'Apri Uscite'],
+  previsione: ['previsione', 'Apri Previsionale'],
+  forfettario: ['fatture', 'Apri Fatture'],
+  patrimonio: ['patrimonio', 'Apri Patrimonio'],
+  dipendente: ['dipendente', 'Apri Lavoro dipendente'],
+  isee: ['isee', 'Apri ISEE'],
+  regole: ['impostazioni', 'Apri Impostazioni'],
+}
+
+const PESO: Record<string, number> = { errore: 0, attenzione: 1, info: 2 }
+
+/**
+ * Prima gli avvisi arrivavano tutti insieme, in ordine di modulo, sopra ogni
+ * scheda: cinque riquadri in cui l'unico che contava - il conto in rosso -
+ * stava in mezzo a due tecnicismi. Qui sono ordinati per gravita', gli
+ * informativi sono richiusi, e ognuno porta il pulsante che apre la schermata
+ * dove si rimedia.
+ */
+function BandaAvvisi({
+  avvisi,
+  schedeVisibili,
+  vai,
+}: {
+  avvisi: Avviso[]
+  schedeVisibili: Scheda[]
+  vai: (s: Scheda) => void
+}) {
+  if (!avvisi.length) return null
+  const ordinati = [...avvisi].sort((a, b) => PESO[a.livello] - PESO[b.livello])
+  const inEvidenza = ordinati.filter((a) => a.livello !== 'info')
+  const note = ordinati.filter((a) => a.livello === 'info')
+
+  const riga = (a: Avviso, i: number) => {
+    const rimedio = RIMEDIO[a.modulo]
+    const raggiungibile = rimedio && schedeVisibili.includes(rimedio[0])
+    return (
+      <div key={`${a.modulo}-${i}`} className={`avviso ${a.livello}`}>
+        <p>{a.messaggio}</p>
+        {raggiungibile && (
+          <button className="rimedio" onClick={() => vai(rimedio[0])}>
+            {rimedio[1]} &rarr;
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <section className="avvisi">
+      {inEvidenza.map(riga)}
+      {note.length > 0 && (
+        <details className="note-tecniche">
+          <summary>
+            {note.length === 1 ? '1 nota tecnica' : `${note.length} note tecniche`}
+          </summary>
+          {note.map(riga)}
+        </details>
+      )}
+    </section>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Riepilogo
+// ---------------------------------------------------------------------------
+
+/** Passo "tondo" per le tacche di un asse, dato l'intervallo da coprire. */
+function passoTacche(intervallo: number): number {
+  if (intervallo <= 0) return 1
+  const grezzo = intervallo / 4
+  const ordine = 10 ** Math.floor(Math.log10(grezzo))
+  const normalizzato = grezzo / ordine
+  const scelto = normalizzato <= 1 ? 1 : normalizzato <= 2 ? 2 : normalizzato <= 5 ? 5 : 10
+  return scelto * ordine
+}
+
+/**
+ * I due conti nei dodici mesi. E' il grafico che mancava, e senza il quale la
+ * cosa piu' importante restava invisibile: gli F24 escono dal fondo tasse, non
+ * dal conto corrente, quindi a giugno la linea del conto sale mentre in banca
+ * sono usciti migliaia di euro. Con due linee affiancate il travaso si vede.
+ */
+function GraficoConti({ contesto }: { contesto: Contesto }) {
+  const conto = contesto.serie.saldoProgressivo ?? []
+  const fondo = contesto.serie.fondoTasseProgressivo ?? []
+  if (conto.length !== 12 || fondo.length !== 12) return null
+
+  const L = 66
+  const R = 14
+  const T = 26
+  const B = 34
+  const W = 720
+  const H = 300
+  const x = (i: number) => L + (i * (W - L - R)) / 11
+
+  const valori = [...conto, ...fondo, 0]
+  const grezzoMax = Math.max(...valori)
+  const grezzoMin = Math.min(...valori)
+  const passo = passoTacche(grezzoMax - grezzoMin)
+  const max = Math.ceil(grezzoMax / passo) * passo
+  const min = Math.floor(grezzoMin / passo) * passo
+  const span = max - min || 1
+  const y = (v: number) => T + ((max - v) * (H - T - B)) / span
+
+  const tacche: number[] = []
+  for (let v = min; v <= max + 1; v += passo) tacche.push(v)
+
+  const linea = (serie: number[]) => serie.map((v, i) => `${x(i)},${y(v)}`).join(' ')
+
+  const meseGiugno = Number(contesto.regole.acconti.scadenzaSaldoEPrimoAcconto.split('-')[0])
+  const meseNovembre = Number(contesto.regole.acconti.scadenzaSecondoAcconto.split('-')[0])
+  const scadenze: [number, number][] = [
+    [meseGiugno, contesto.valori.f24Giugno ?? 0],
+    [meseNovembre, contesto.valori.f24Novembre ?? 0],
+  ]
+
+  const primoRosso = conto.findIndex((v) => v < 0)
+
+  return (
+    <div className="tela">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        role="img"
+        aria-label={`Andamento mensile. Conto corrente da ${formatta(conto[0])} a ${formatta(
+          conto[11],
+        )}. Fondo tasse da ${formatta(fondo[0])} a ${formatta(fondo[11])}.`}
+      >
+        {tacche.map((v) => (
+          <g key={v}>
+            <line
+              x1={L}
+              y1={y(v)}
+              x2={W - R}
+              y2={y(v)}
+              stroke={v === 0 ? 'var(--bordo-forte)' : 'var(--bordo)'}
+            />
+            <text className="tacca" x={L - 8} y={y(v) + 3.5} textAnchor="end">
+              {inEuro(v).toLocaleString('it-IT', { maximumFractionDigits: 0 })}
+            </text>
+          </g>
+        ))}
+
+        {scadenze.map(([mese, importo]) =>
+          importo > 0 && mese >= 1 && mese <= 12 ? (
+            <g key={mese}>
+              <line
+                className="scadenza"
+                x1={x(mese - 1)}
+                y1={T - 6}
+                x2={x(mese - 1)}
+                y2={H - B}
+              />
+              <text
+                className="etichetta-scadenza"
+                x={x(mese - 1)}
+                y={T - 11}
+                textAnchor={mese > 9 ? 'end' : 'middle'}
+              >
+                F24 {formatta(importo)}
+              </text>
+            </g>
+          ) : null,
+        )}
+
+        <polyline className="linea-fisco" points={linea(fondo)} />
+        <polyline className="linea-tuo" points={linea(conto)} />
+
+        {primoRosso >= 0 && (
+          <>
+            <circle className="punto-allarme" cx={x(11)} cy={y(conto[11])} r={4.5} />
+            <text
+              className="etichetta-allarme"
+              x={W - R}
+              y={y(conto[11]) + (conto[11] < 0 ? 18 : -10)}
+              textAnchor="end"
+            >
+              {formatta(conto[11])}
+            </text>
+          </>
+        )}
+
+        {MESI.map((m, i) => (
+          <text key={m} className="tacca" x={x(i)} y={H - 12} textAnchor="middle">
+            {m}
+          </text>
+        ))}
+      </svg>
+    </div>
+  )
+}
+
+function Riepilogo({
+  dati,
+  contesto,
+  kpi,
+  serie,
+  vuoto,
+}: {
+  dati: DatiUtente
+  contesto: Contesto
+  kpi: Kpi[]
+  serie: SerieMensile[]
+  vuoto: boolean
+}) {
+  // Senza dati i due vasi mostrerebbero 0,00 EUR e il grafico una riga piatta
+  // senza nemmeno i mesi: meno di niente. L'invito a caricare l'esempio, che
+  // sta gia' sopra, e' tutto quello che serve qui.
+  if (vuoto) return null
+
+  const v = contesto.valori
+  const gruppi = [...new Set(kpi.map((k) => k.gruppo))]
+
+  // Un importo di riferimento preso dalle fatture vere: la percentuale da sola
+  // non si accantona, si accantona una cifra.
+  const conImporto = dati.fatture.filter((f) => f.imponibile > 0)
+  const media = conImporto.length
+    ? Math.round(conImporto.reduce((a, f) => a + f.imponibile, 0) / conImporto.length)
+    : 0
+  const riferimento = media > 0 ? Math.max(euro(100), Math.round(media / euro(100)) * euro(100)) : euro(1000)
+  const quota = Math.round(riferimento * (v.percentualeAccantonamento ?? 0))
+
+  const speseMensili = (v.speseCorrenti ?? 0) / 12
+  const mesiCoperti = speseMensili > 0 ? (v.saldoFinaleCassa ?? 0) / speseMensili : null
+  const obiettivo = v.obiettivoFondoTasse ?? 0
+  const fondoFinale = v.saldoFinaleFondoTasse ?? 0
+  const coperturaFondo = obiettivo > 0 ? fondoFinale / obiettivo : null
+
+  return (
+    <>
+      {(v.incassato > 0 || v.fatturatoPrevisto > 0) && (
+        <section className="risposta">
+          <p className="domanda">Su ogni bonifico che arriva, metti da parte</p>
+          <p className="cifra">{formattaPercentuale(v.percentualeAccantonamento ?? 0, 1)}</p>
+          <p className="traduzione">
+            Su una fattura da <strong>{formatta(riferimento)}</strong> vuol dire spostare{' '}
+            <strong className="euro-fisco">{formatta(quota)}</strong> sul conto tasse e tenerne{' '}
+            <strong className="euro-tuo">{formatta(riferimento - quota)}</strong>.
+          </p>
+        </section>
+      )}
+
+      <div className="vasi">
+        <div className="vaso tuo">
+          <p className="etichetta">Tuoi &middot; conto corrente a fine anno</p>
+          <p className="valore">{formatta(v.saldoFinaleCassa ?? 0)}</p>
+          <p className="nota">
+            {(v.saldoFinaleCassa ?? 0) < 0
+              ? 'Il conto chiude sotto zero: a quel punto le spese non sono coperte.'
+              : mesiCoperti === null
+                ? 'Nessuna spesa inserita.'
+                : `Coprono ${mesiCoperti.toLocaleString('it-IT', {
+                    maximumFractionDigits: 1,
+                  })} mesi di spese correnti.`}
+            {v.saldoMinimoCassa < 0 &&
+              ` Il minimo dell’anno è ${formatta(v.saldoMinimoCassa)}, a ${
+                MESI[(v.meseSaldoMinimo ?? 1) - 1]
+              }.`}
+          </p>
+        </div>
+        <div className="vaso fisco">
+          <p className="etichetta">Del fisco &middot; fondo tasse a fine anno</p>
+          <p className="valore">{formatta(fondoFinale)}</p>
+          <div className="barretta">
+            <i style={{ width: `${Math.min(100, Math.max(0, (coperturaFondo ?? 0) * 100))}%` }} />
+          </div>
+          <p className="nota">
+            {coperturaFondo === null
+              ? 'Nessun obiettivo da coprire.'
+              : `${formattaPercentuale(coperturaFondo, 0)} dell’obiettivo di ${formatta(
+                  obiettivo,
+                )}.`}
+          </p>
+        </div>
+      </div>
+
+      <section>
+        <h2>I due conti nei dodici mesi</h2>
+        <p className="legenda">
+          <span className="chiave tuo">Conto corrente</span>
+          <span className="chiave fisco">Fondo tasse</span>
+          <span className="nota">
+            Le rate F24 escono dal fondo, non dal conto: per questo a giugno il conto non scende.
+          </span>
+        </p>
+        <GraficoConti contesto={contesto} />
+      </section>
+
+      <details className="approfondimento">
+        <summary>Tutti i numeri</summary>
+        {gruppi.map((gruppo) => (
+          <section key={gruppo}>
+            <h3>{gruppo}</h3>
+            <div className="griglia">
+              {kpi
+                .filter((k) => k.gruppo === gruppo)
+                .map((k) => {
+                  const stato = k.semaforo?.(contesto)
+                  return (
+                    <div key={k.chiave} className="scheda">
+                      <span className="etichetta">{k.etichetta}</span>
+                      <span className="valore">{valoreKpi(k, contesto)}</span>
+                      {stato && (
+                        <span className={`semaforo ${stato === 'OK' ? 'ok' : 'allerta'}`}>
+                          {stato}
+                        </span>
+                      )}
+                      {k.nota && <span className="nota">{k.nota}</span>}
+                    </div>
+                  )
+                })}
+            </div>
+          </section>
+        ))}
+      </details>
+
+      <details className="approfondimento">
+        <summary>Dettaglio mese per mese</summary>
+        <div className="tabella">
+          <table>
+            <thead>
+              <tr>
+                <th>Voce</th>
+                {MESI.map((m) => (
+                  <th key={m}>{m}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {serie.map((d) => (
+                <tr key={d.chiave}>
+                  <th>{d.etichetta}</th>
+                  {(contesto.serie[d.chiave] ?? []).map((valore, i) => (
+                    <td key={i} className={valore < 0 ? 'negativo' : ''}>
+                      {formatta(valore)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
     </>
   )
 }

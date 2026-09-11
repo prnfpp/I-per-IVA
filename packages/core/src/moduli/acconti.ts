@@ -1,4 +1,4 @@
-import { max0, mul, type Cents } from '../denaro.js'
+import { formatta, max0, mul, type Cents } from '../denaro.js'
 import type { Contesto, Contributo, Kpi, Modulo, Movimento } from '../tipi.js'
 
 /**
@@ -165,16 +165,14 @@ export const moduloAcconti: Modulo = {
       avvisi.push({
         livello: 'attenzione',
         modulo: 'acconti',
-        messaggio:
-          'Il fondo tasse e’ sotto l’obiettivo: parte di quello che hai sul conto e’ denaro dell’Agenzia delle Entrate.',
+        messaggio: `Sul fondo tasse mancano ${formatta(-gap)} rispetto all’obiettivo di ${formatta(obiettivo)}: quella cifra e’ sul conto corrente, ma e’ denaro dell’Agenzia delle Entrate.`,
       })
     }
     if (nonCoperto > 0) {
       avvisi.push({
         livello: 'attenzione',
         modulo: 'acconti',
-        messaggio:
-          'Gli incassi dell’anno non bastano ad alimentare il fondo tasse: al piano mancano dei soldi che dovrai trovare altrove. Non li ho tolti dal conto corrente d’ufficio.',
+        messaggio: `Gli incassi dell’anno non bastano ad alimentare il fondo tasse: al piano mancano ${formatta(nonCoperto)}, che dovrai trovare altrove. Non li ho tolti dal conto corrente d’ufficio.`,
       })
     }
     if (serieFondo.some((v) => v < 0)) {
@@ -214,6 +212,13 @@ export const moduloAcconti: Modulo = {
       movimenti,
       avvisi,
     }
+  },
+
+  descriviSerie() {
+    return [
+      { chiave: 'accantonamentiMensili', etichetta: 'Versato sul fondo tasse', tipo: 'flusso' as const },
+      { chiave: 'fondoTasseProgressivo', etichetta: 'Fondo tasse', tipo: 'saldo' as const },
+    ]
   },
 
   kpi(): Kpi[] {

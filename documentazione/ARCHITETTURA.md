@@ -123,6 +123,16 @@ Lo stato vive in un solo `useStato()`: legge da `localStorage`, ricalcola tutto 
 
 La dashboard è generata dai `kpi()` dei moduli attivi. Aggiungere un modulo lo fa comparire senza toccare `App.tsx`.
 
+Il riepilogo ha una gerarchia, e non è un dettaglio estetico. Prima erano venticinque riquadri con lo stesso bordo e la stessa dimensione: «Da accantonare su ogni incasso», che è la risposta alla prima domanda del README, aveva lo stesso peso visivo di «Pressione fiscale». Un riepilogo in cui tutto è importante è un riepilogo in cui niente lo è. Oggi in cima c'è una risposta sola, tradotta in euro su una fattura vera — nessuno accantona una percentuale, si accantona un importo — poi i due conti, poi il grafico. Tutto il resto sta dentro due `<details>` chiusi.
+
+I **due colori** portano significato, non decorazione: `--tuo` (petrolio) è il denaro dell'utente, `--fisco` (ocra) quello dell'Agenzia delle Entrate. È la stessa distinzione che nel core è il flag `impattaContoCorrente`, resa visibile. La regola non si tradisce: nessun elemento usa l'ocra per qualcosa che non sia destinato all'erario.
+
+Il **grafico dei due conti** esiste per una ragione precisa. Gli F24 escono dal fondo tasse e non dal conto corrente, quindi la riga del conto a giugno *sale* mentre in banca sono usciti settemila euro. Il modello è corretto ma la lettura era ingannevole, e non c'era niente sullo schermo che spiegasse da dove quei soldi fossero usciti. Con le due linee affiancate e le scadenze segnate, il travaso si vede.
+
+Le **serie mensili** hanno un'etichetta dichiarata dal modulo che le produce, con `descriviSerie()`. Prima la tabella era generata con `Object.entries(contesto.serie)` e stampava le chiavi così com'erano — `fondoTasseProgressivo`, `saldoProgressivo` — cioè output di debug esposto come interfaccia. Tenere l'etichetta accanto al dato, come già si fa per i `kpi()`, evita che la mappa dei nomi si scolli dal codice che li genera.
+
+Gli **avvisi** sono ordinati per gravità, gli informativi sono richiusi in una riga, e ognuno porta il pulsante che apre la schermata dove si rimedia. La mappa modulo → scheda sta nella web app e non nel core: è navigazione, e il modulo `cassa` non deve sapere che esiste una scheda chiamata Uscite. Su stato vuoto non se ne mostra nessuno — all'apertura si vedevano quattro allarmi su dati che non esistevano ancora.
+
 ## Cosa Quadro non farà
 
 L'IVA, i registri, le liquidazioni periodiche. Nel momento in cui li aggiunge diventa un gestionale, entra in concorrenza con il software che gli utenti già pagano e si prende una responsabilità che non vuole. È un confine di prodotto, non un limite tecnico, e serve a tenere onesta la promessa del README.

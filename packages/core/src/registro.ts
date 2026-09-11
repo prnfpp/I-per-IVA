@@ -1,5 +1,5 @@
 import { regolePerAnno, annoCoperto, parametriDaVerificare } from '@iperiva/rules'
-import type { Contesto, Contributo, DatiUtente, Kpi, Modulo } from './tipi.js'
+import type { Contesto, Contributo, DatiUtente, Kpi, Modulo, SerieMensile } from './tipi.js'
 
 const registro = new Map<string, Modulo>()
 
@@ -82,6 +82,7 @@ export interface Risultato {
   contesto: Contesto
   moduliCalcolati: string[]
   kpi: Kpi[]
+  serie: SerieMensile[]
 }
 
 export function calcola(dati: DatiUtente): Risultato {
@@ -140,5 +141,10 @@ export function calcola(dati: DatiUtente): Risultato {
     contesto: ctx,
     moduliCalcolati: ordinati.map((m) => m.id),
     kpi: ordinati.flatMap((m) => m.kpi()),
+    // Solo le serie che esistono davvero nel contesto: un modulo puo'
+    // dichiararne una e poi non emetterla, per esempio quando esce presto.
+    serie: ordinati
+      .flatMap((m) => m.descriviSerie?.() ?? [])
+      .filter((d) => Array.isArray(ctx.serie[d.chiave])),
   }
 }

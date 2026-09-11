@@ -88,6 +88,13 @@ export const moduloUscite: Modulo = {
     }
   },
 
+  descriviSerie() {
+    return [
+      { chiave: 'speseMensili', etichetta: 'Spese', tipo: 'flusso' as const },
+      { chiave: 'risparmiMensili', etichetta: 'Risparmio e investimenti', tipo: 'flusso' as const },
+    ]
+  },
+
   kpi(): Kpi[] {
     return [
       { chiave: 'speseCorrenti', etichetta: 'Spese correnti', formato: 'euro', gruppo: 'Uscite' },

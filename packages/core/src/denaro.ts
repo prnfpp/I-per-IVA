@@ -44,6 +44,10 @@ export function formatta(c: Cents, locale = 'it-IT'): string {
     style: 'currency',
     currency: 'EUR',
     minimumFractionDigits: 2,
+    // La locale italiana, con il default 'auto', non raggruppa le quattro
+    // cifre: 3700,00 EUR accanto a 44.400,00 EUR in colonna e' un salto che si
+    // legge come un errore di battitura. 'always' lo impone.
+    useGrouping: 'always',
   }).format(inEuro(c))
 }
 

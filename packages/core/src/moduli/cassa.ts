@@ -1,4 +1,10 @@
+import { formatta } from '../denaro.js'
 import type { Contesto, Contributo, Kpi, Modulo } from '../tipi.js'
+
+const MESI_ESTESI = [
+  'gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno',
+  'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre',
+]
 
 /**
  * La cassa non ha logica propria: e' un riduttore sui movimenti che gli altri
@@ -12,7 +18,13 @@ export const moduloCassa: Modulo = {
   obbligatorio: true,
   richiede: ['usciteTotali'],
   opzionali: ['obiettivoFondoTasse', 'nettoDipendenteAnnuo'],
-  fornisce: ['entrateAnno', 'saldoFinaleCassa', 'saldoMinimoCassa', 'meseSaldoMinimo'],
+  fornisce: [
+    'entrateAnno',
+    'saldoFinaleCassa',
+    'saldoMinimoCassa',
+    'meseSaldoMinimo',
+    'mesePrimoScoperto',
+  ],
 
   calcola(ctx: Contesto): Contributo {
     const entrate = Array(12).fill(0)
@@ -34,6 +46,9 @@ export const moduloCassa: Modulo = {
 
     const minimo = Math.min(...progressivo)
     const meseMinimo = progressivo.indexOf(minimo) + 1
+    // Il mese da nominare e' il primo in cui il conto va sotto, non il
+    // peggiore: e' quello prima del quale bisogna intervenire.
+    const primoRosso = progressivo.findIndex((v) => v < 0) + 1
 
     return {
       valori: {
@@ -41,6 +56,7 @@ export const moduloCassa: Modulo = {
         saldoFinaleCassa: progressivo[11],
         saldoMinimoCassa: minimo,
         meseSaldoMinimo: meseMinimo,
+        mesePrimoScoperto: primoRosso,
       },
       serie: { entrateMensili: entrate, usciteMensili: uscite, saldoProgressivo: progressivo },
       avvisi:
@@ -49,11 +65,19 @@ export const moduloCassa: Modulo = {
               {
                 livello: 'errore',
                 modulo: 'cassa',
-                messaggio: `Il conto corrente va in rosso al mese ${meseMinimo}. Sposta una spesa o rateizza, prima che accada.`,
+                messaggio: `Il conto corrente va sotto zero a ${MESI_ESTESI[primoRosso - 1]} e tocca il minimo a ${MESI_ESTESI[meseMinimo - 1]}, a ${formatta(minimo)}. Vanno trovati ${formatta(-minimo)} entro allora, oppure spostata piu' avanti una spesa di pari importo.`,
               },
             ]
           : [],
     }
+  },
+
+  descriviSerie() {
+    return [
+      { chiave: 'entrateMensili', etichetta: 'Entrate sul conto', tipo: 'flusso' as const },
+      { chiave: 'usciteMensili', etichetta: 'Uscite dal conto', tipo: 'flusso' as const },
+      { chiave: 'saldoProgressivo', etichetta: 'Conto corrente', tipo: 'saldo' as const },
+    ]
   },
 
   kpi(): Kpi[] {

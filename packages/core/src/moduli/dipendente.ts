@@ -235,6 +235,10 @@ export const moduloDipendente: Modulo = {
     }
   },
 
+  descriviSerie() {
+    return [{ chiave: 'nettiDipendenteMensili', etichetta: 'Netto da busta paga', tipo: 'flusso' as const }]
+  },
+
   kpi(): Kpi[] {
     return [
       { chiave: 'ralSimulata', etichetta: 'RAL', formato: 'euro', gruppo: 'Lavoro dipendente' },

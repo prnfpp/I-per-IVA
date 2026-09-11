@@ -181,6 +181,10 @@ export const moduloForfettario: Modulo = {
     }
   },
 
+  descriviSerie() {
+    return [{ chiave: 'incassiMensili', etichetta: 'Incassato', tipo: 'flusso' as const }]
+  },
+
   kpi(): Kpi[] {
     return [
       { chiave: 'fatturatoEmesso', etichetta: 'Fatturato emesso', formato: 'euro', gruppo: 'Fatturato' },

@@ -8,6 +8,16 @@
   --ok: #0a7a3d;
   --allerta: #b3541e;
   --errore: #a01c1c;
+
+  /* I due colori portano un significato, non una decorazione: petrolio e'
+     il denaro tuo, ocra quello dell'Agenzia delle Entrate. Da qui in poi
+     la regola non si tradisce: nessun grafico, nessuna etichetta usa l'ocra
+     per qualcosa che non sia destinato all'erario. */
+  --tuo: #12545e;
+  --tuo-tenue: #e3f0f1;
+  --fisco: #8f5410;
+  --fisco-tenue: #f6ecdd;
+  --bordo-forte: #b4c4c7;
 }
 
 * { box-sizing: border-box; }
@@ -98,3 +108,96 @@ footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--bordo)
 
 button:disabled { opacity: 0.45; cursor: not-allowed; }
 button:disabled:hover { border-color: var(--bordo); }
+
+
+/* ---------- avvisi ---------- */
+
+.avviso { display: flex; align-items: flex-start; gap: 14px; }
+.avviso p { margin: 0; flex: 1; }
+.avviso button.rimedio {
+  margin: 0; flex: none; white-space: nowrap; padding: 4px 10px;
+  font-size: 13px; border-color: var(--bordo-forte); background: #fff;
+}
+.avviso button.rimedio:hover { border-color: var(--accento); color: var(--accento); }
+
+.note-tecniche { font-size: 13px; }
+.note-tecniche summary {
+  cursor: pointer; color: var(--tenue); padding: 4px 0; list-style-position: outside;
+}
+.note-tecniche summary:hover { color: var(--accento); }
+.note-tecniche .avviso { margin-top: 6px; }
+
+/* ---------- la risposta ---------- */
+
+.risposta {
+  background: var(--tuo-tenue);
+  border: 1px solid color-mix(in srgb, var(--tuo) 28%, transparent);
+  border-radius: 10px; padding: 20px 22px 22px; margin: 20px 0 14px;
+}
+.risposta .domanda { margin: 0 0 6px; font-size: 14px; color: var(--tuo); font-weight: 600; }
+.risposta .cifra {
+  margin: 0 0 8px; font-size: 52px; line-height: 1; letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums; color: var(--testo);
+}
+.risposta .traduzione { margin: 0; font-size: 15px; color: var(--tenue); }
+.risposta .traduzione strong { color: var(--testo); font-variant-numeric: tabular-nums; }
+.euro-fisco { color: var(--fisco) !important; }
+.euro-tuo { color: var(--tuo) !important; }
+
+/* ---------- i due vasi ---------- */
+
+.vasi { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.vaso {
+  background: var(--scheda); border: 1px solid var(--bordo);
+  border-top: 3px solid var(--bordo-forte);
+  border-radius: 8px; padding: 12px 14px 14px;
+}
+.vaso.tuo { border-top-color: var(--tuo); }
+.vaso.fisco { border-top-color: var(--fisco); }
+.vaso .etichetta { display: block; margin: 0 0 4px; }
+.vaso.tuo .etichetta { color: var(--tuo); }
+.vaso.fisco .etichetta { color: var(--fisco); }
+.vaso .valore { margin: 0 0 6px; font-size: 26px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.vaso .nota { margin: 0; }
+.vaso .barretta {
+  height: 5px; border-radius: 3px; background: #eceff1; overflow: hidden; margin: 0 0 7px;
+}
+.vaso .barretta i { display: block; height: 100%; background: var(--fisco); border-radius: 3px; }
+
+/* ---------- grafico ---------- */
+
+.legenda { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; margin: 0 0 8px; }
+.legenda .chiave { font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
+.legenda .chiave::before {
+  content: ''; width: 14px; height: 3px; border-radius: 2px; display: inline-block;
+}
+.legenda .chiave.tuo { color: var(--tuo); }
+.legenda .chiave.tuo::before { background: var(--tuo); }
+.legenda .chiave.fisco { color: var(--fisco); }
+.legenda .chiave.fisco::before { background: var(--fisco); }
+
+.tela { overflow-x: auto; }
+.tela svg { display: block; width: 100%; min-width: 520px; height: auto; }
+.tela .tacca { font-size: 11px; fill: var(--tenue); font-variant-numeric: tabular-nums; }
+.tela .scadenza { stroke: var(--fisco); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.5; }
+.tela .etichetta-scadenza { font-size: 10.5px; fill: var(--fisco); }
+.tela .linea-tuo { fill: none; stroke: var(--tuo); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.tela .linea-fisco { fill: none; stroke: var(--fisco); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.tela .punto-allarme { fill: var(--errore); }
+.tela .etichetta-allarme { font-size: 11.5px; font-weight: 600; fill: var(--errore); font-variant-numeric: tabular-nums; }
+
+/* ---------- approfondimenti ---------- */
+
+.approfondimento { margin: 22px 0 0; border-top: 1px solid var(--bordo); padding-top: 12px; }
+.approfondimento > summary {
+  cursor: pointer; font-size: 14px; font-weight: 600; color: var(--accento); padding: 4px 0;
+}
+.approfondimento > summary:hover { text-decoration: underline; }
+.approfondimento h3 { font-size: 13px; margin: 18px 0 8px; color: var(--tenue);
+  text-transform: uppercase; letter-spacing: 0.05em; }
+
+@media (max-width: 640px) {
+  .vasi { grid-template-columns: 1fr; }
+  .risposta .cifra { font-size: 42px; }
+  .avviso { flex-direction: column; gap: 8px; }
+}

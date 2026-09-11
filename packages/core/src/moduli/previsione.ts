@@ -47,6 +47,10 @@ export const moduloPrevisione: Modulo = {
     }
   },
 
+  descriviSerie() {
+    return [{ chiave: 'previsioneMensile', etichetta: 'Fatturato previsto', tipo: 'flusso' as const }]
+  },
+
   kpi(): Kpi[] {
     return [
       { chiave: 'fatturatoPrevisto', etichetta: 'Fatturato previsto', formato: 'euro', gruppo: 'Fatturato' },

@@ -198,6 +198,18 @@ export interface Kpi {
   semaforo?: (ctx: Contesto) => string
 }
 
+/**
+ * Descrizione di una serie mensile pubblicata da un modulo. Serve perche' la
+ * dashboard non debba conoscere le chiavi interne: prima stampava
+ * `fondoTasseProgressivo` cosi' com'era, cioe' output di debug come interfaccia.
+ */
+export interface SerieMensile {
+  chiave: string
+  etichetta: string
+  /** 'saldo' e' un progressivo a fine mese, 'flusso' un movimento del mese. */
+  tipo: 'saldo' | 'flusso'
+}
+
 export interface Modulo {
   id: string
   etichetta: string
@@ -218,4 +230,6 @@ export interface Modulo {
   regoleUsate?(dati: DatiUtente): string[]
   calcola(ctx: Contesto): Contributo
   kpi(): Kpi[]
+  /** Etichette in italiano delle serie mensili che il modulo pubblica. */
+  descriviSerie?(): SerieMensile[]
 }
