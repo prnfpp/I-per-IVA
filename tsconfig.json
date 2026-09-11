@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "paths": {
+      "@iperiva/rules": [
+        "./packages/rules/src/index.ts"
+      ],
+      "@iperiva/core": [
+        "./packages/core/src/index.ts"
+      ]
+    },
+    "baseUrl": "."
+  },
+  "include": [
+    "packages/*/src/**/*",
+    "packages/*/test/**/*",
+    "apps/web/src/**/*"
+  ]
+}

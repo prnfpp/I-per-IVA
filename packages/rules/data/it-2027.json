@@ -1,0 +1,221 @@
+{
+  "anno": 2027,
+  "paese": "IT",
+  "aggiornatoIl": null,
+  "forfettario": {
+    "sogliaRicavi": 85000,
+    "sogliaUscitaImmediata": 100000,
+    "sogliaRedditoDipendente": 30000,
+    "aliquotaOrdinaria": 0.15,
+    "aliquotaStartup": 0.05,
+    "anniStartup": 5,
+    "coefficienti": {
+      "professionale": 0.78,
+      "commercio_ingrosso_dettaglio": 0.4,
+      "commercio_ambulante_alimentari": 0.4,
+      "commercio_ambulante_altro": 0.54,
+      "costruzioni_immobiliari": 0.86,
+      "intermediari_commercio": 0.62,
+      "alloggio_ristorazione": 0.4,
+      "altre_attivita": 0.67,
+      "industrie_alimentari": 0.4
+    },
+    "fonte": "SEGNAPOSTO: la soglia torna a 30.000 euro salvo proroghe. Da verificare con la Legge di Bilancio 2027."
+  },
+  "previdenza": {
+    "gestione_separata": {
+      "etichetta": "INPS Gestione Separata",
+      "aliquotaPiena": 0.2607,
+      "aliquotaRidotta": 0.24,
+      "massimale": 122295,
+      "minimale": null,
+      "accontoPercentuale": 0.8,
+      "accontoRate": [
+        0.5,
+        0.5
+      ],
+      "scadenzeAcconto": [
+        "06-30",
+        "11-30"
+      ],
+      "fonte": "SEGNAPOSTO: valori 2026 da aggiornare con le circolari INPS 2027.",
+      "verificato": false
+    },
+    "artigiani": {
+      "etichetta": "INPS Artigiani",
+      "aliquotaPiena": 0.24,
+      "aliquotaRidotta": 0.24,
+      "massimale": 92413,
+      "minimale": {
+        "redditoMinimo": 18555,
+        "contributoFisso": 4460.64,
+        "riduzioneNuoveAttivita": 0.35
+      },
+      "accontoPercentuale": 1.0,
+      "accontoRate": [
+        0.5,
+        0.5
+      ],
+      "scadenzeAcconto": [
+        "06-30",
+        "11-30"
+      ],
+      "scadenzeFisse": [
+        "05-16",
+        "08-20",
+        "11-16",
+        "02-16"
+      ],
+      "fonte": "SEGNAPOSTO: valori 2026 da aggiornare con le circolari INPS 2027.",
+      "verificato": false
+    },
+    "commercianti": {
+      "etichetta": "INPS Commercianti",
+      "aliquotaPiena": 0.2448,
+      "aliquotaRidotta": 0.2448,
+      "massimale": 92413,
+      "minimale": {
+        "redditoMinimo": 18555,
+        "contributoFisso": 4549.7,
+        "riduzioneNuoveAttivita": 0.35
+      },
+      "accontoPercentuale": 1.0,
+      "accontoRate": [
+        0.5,
+        0.5
+      ],
+      "scadenzeAcconto": [
+        "06-30",
+        "11-30"
+      ],
+      "scadenzeFisse": [
+        "05-16",
+        "08-20",
+        "11-16",
+        "02-16"
+      ],
+      "fonte": "SEGNAPOSTO: valori 2026 da aggiornare con le circolari INPS 2027.",
+      "verificato": false
+    }
+  },
+  "acconti": {
+    "sogliaUnicaRata": 257.52,
+    "percentualeTotale": 1.0,
+    "quotaPrimaRata": 0.4,
+    "scadenzaSaldoEPrimoAcconto": "06-30",
+    "scadenzaSecondoAcconto": "11-30",
+    "fonte": "L. 97/1977 art. 1; DPR 435/2001"
+  },
+  "irpef": {
+    "scaglioni": [
+      {
+        "da": 0,
+        "aliquota": 0.23
+      },
+      {
+        "da": 28000,
+        "aliquota": 0.33
+      },
+      {
+        "da": 50000,
+        "aliquota": 0.43
+      }
+    ],
+    "fonte": "L. 199/2025 (seconda aliquota ridotta dal 35% al 33%)"
+  },
+  "lavoroDipendente": {
+    "contributiDipendente": 0.0919,
+    "tfrDivisore": 13.5,
+    "tfrFondoGaranzia": 0.005,
+    "detrazione": {
+      "importoBase": 1955,
+      "soglia1": 15000,
+      "soglia2": 28000,
+      "soglia3": 50000,
+      "quotaFissaFascia2": 1910,
+      "quotaVariabileFascia2": 1190,
+      "denominatoreFascia2": 13000,
+      "quotaFissaFascia3": 1910,
+      "denominatoreFascia3": 22000,
+      "fonte": "art. 13 TUIR"
+    },
+    "cuneoFiscale": {
+      "sogliaSommaEsente": 20000,
+      "percentuali": [
+        {
+          "finoA": 8500,
+          "aliquota": 0.071
+        },
+        {
+          "finoA": 15000,
+          "aliquota": 0.053
+        },
+        {
+          "finoA": 20000,
+          "aliquota": 0.048
+        }
+      ],
+      "ulterioreDetrazione": {
+        "importoPieno": 1000,
+        "sogliaInizio": 20000,
+        "sogliaDecalage": 32000,
+        "sogliaAzzeramento": 40000
+      },
+      "fonte": "L. 207/2024 art. 1 cc. 4-9, resa strutturale dalla L. 199/2025"
+    },
+    "addizionali": {
+      "regionali": {
+        "emilia-romagna": 0.0173,
+        "lombardia": 0.0173,
+        "lazio": 0.0273,
+        "default": 0.0173
+      },
+      "comunali": {
+        "bologna": 0.008,
+        "milano": 0.008,
+        "roma": 0.009,
+        "default": 0.008
+      },
+      "fonte": "Valori medi indicativi. Da sostituire con l'aliquota reale del proprio comune.",
+      "verificato": false
+    }
+  },
+  "isee": {
+    "scalaEquivalenza": {
+      "1": 1.0,
+      "2": 1.57,
+      "3": 2.04,
+      "4": 2.46,
+      "5": 2.85,
+      "incrementoOltre5": 0.35
+    },
+    "maggiorazioniFigli": {
+      "2": 0.1,
+      "3": 0.25,
+      "4": 0.4,
+      "5": 0.55
+    },
+    "quotaPatrimonio": 0.2,
+    "deduzioneAffittoMax": 7000,
+    "deduzioneAffittoPerFiglioOltreIlSecondo": 500,
+    "deduzioneLavoroDipendentePercentuale": 0.2,
+    "deduzioneLavoroDipendenteMax": 3000,
+    "franchigiaMobiliareBase": 6000,
+    "franchigiaMobiliarePerComponente": 2000,
+    "franchigiaMobiliareMax": 10000,
+    "franchigiaMobiliarePerFiglioOltreIlSecondo": 1000,
+    "esclusioneTitoliDiStato": 50000,
+    "franchigiaPrimaCasa": 91500,
+    "franchigiaPrimaCasaCittaMetropolitana": 120000,
+    "franchigiaPrimaCasaPerFiglioOltreIlPrimo": 2500,
+    "quotaEccedenzaPrimaCasa": 0.6666666666666666,
+    "annoRiferimentoRedditiIndietro": 2,
+    "fonte": "DPCM 159/2013; L. 199/2025 art. 1 cc. 208-209 per franchigia prima casa e scala di equivalenza"
+  },
+  "investimenti": {
+    "capitalGain": 0.26,
+    "capitalGainTitoliDiStato": 0.125,
+    "fondoPensioneDeduzioneMax": 5164.57,
+    "fonte": "DLgs 461/1997; DLgs 252/2005"
+  }
+}
